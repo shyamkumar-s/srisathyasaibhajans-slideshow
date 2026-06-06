@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sri Sathya Sai Bhajans Lyrics Slides Maker</title>
+<link href="https://fonts.googleapis.com/css2?family=Tiro+Devanagari+Sanskrit:ital@0;1&family=Cinzel+Decorative:wght@400;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Prasanthi Nilayam light palette: pink, yellow, and blue */
+    --pink:        #FF74B1;
+    --pink-deep:   #B73572;
+    --pink-dim:    rgba(255, 116, 177, 0.13);
+    --yellow:      #FFEB76;
+    --yellow-deep: #9B7510;
+    --yellow-dim:  rgba(255, 235, 118, 0.24);
+    --blue:        #A6EAFF;
+    --blue-deep:   #19749A;
+    --blue-dim:    rgba(166, 234, 255, 0.24);
+
+    /* Backgrounds — fully light canvas */
+    --dark-bg:     #FFFDF6; /* page background (kept var name for compatibility) */
+    --slide-bg:    #FFFFFF;
+    --card-bg:     rgba(255, 255, 255, 0.92);
+
+    /* Text */
+    --text-primary:   #2E2430;
+    --text-secondary: var(--pink-deep);
+
+    /* Accents derived from palette */
+    --accent-main:  var(--pink);
+    --accent-alt:   var(--yellow);
+    --accent-cool:  var(--blue);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'EB Garamond', Georgia, serif;
+    background:
+      radial-gradient(ellipse at 10% 0%, var(--pink-dim) 0%, transparent 42%),
+      radial-gradient(ellipse at 90% 100%, var(--blue-dim) 0%, transparent 46%),
+      linear-gradient(180deg, var(--dark-bg), #FFFFFF 62%);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── SETUP SCREEN ── */
+  #setup-screen {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    background:
+      radial-gradient(ellipse at 20% 10%, rgba(255,116,177,0.12) 0%, transparent 55%),
+      radial-gradient(ellipse at 80% 90%, rgba(166,234,255,0.10) 0%, transparent 55%),
+      radial-gradient(ellipse at 60% 50%, rgba(255,235,118,0.06) 0%, transparent 50%),
+      var(--dark-bg);
+  }
+
+  .app-logo {
+    display: block;
+    width: clamp(56px, 14vw, 140px);
+    height: auto;
+    margin-bottom: 8px;
+    animation: pulse-glow 3s ease-in-out infinite;
+    filter: drop-shadow(0 6px 18px rgba(255,116,177,0.16));
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { filter: drop-shadow(0 0 12px rgba(255,116,177,0.35)); }
+    50%       { filter: drop-shadow(0 0 40px rgba(255,116,177,0.7)) drop-shadow(0 0 60px rgba(166,234,255,0.3)); }
+  }
+
+  h1.app-title {
+    font-family: 'Cinzel Decorative', serif;
+    font-size: clamp(1.8rem, 4.5vw, 3rem);
+    font-weight: 700;
+    color: var(--pink-deep);
+    letter-spacing: 0.06em;
+    text-align: center;
+    margin-bottom: 4px;
+  }
+
+  .app-subtitle {
+    font-family: 'EB Garamond', serif;
+    font-style: italic;
+    color: rgba(11,23,32,0.6);
+    font-size: 1rem;
+    letter-spacing: 0.08em;
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  .setup-card {
+    background: var(--card-bg);
+    border: 1px solid rgba(255,116,177,0.16);
+    border-radius: 16px;
+    padding: 36px 40px;
+    width: 100%;
+    max-width: 680px;
+    box-shadow: 0 6px 24px rgba(11,23,32,0.06);
+    backdrop-filter: blur(6px);
+  }
+
+  .section-label {
+    font-family: 'Cinzel Decorative', serif;
+    font-size: 0.62rem;
+    letter-spacing: 0.18em;
+    color: var(--pink-deep);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  /* Folder selector */
+  .folder-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 22px;
+    background: var(--pink-dim);
+    border: 1px solid rgba(255,116,177,0.24);
+    border-radius: 8px;
+    color: var(--pink-deep);
+    font-family: 'EB Garamond', serif;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.22s;
+    margin-bottom: 16px;
+  }
+
+  .folder-btn:hover {
+    background: rgba(255,235,118,0.30);
+    border-color: var(--pink);
+    box-shadow: 0 8px 30px rgba(11,23,32,0.06);
+  }
+
+  .folder-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+  #folder-status {
+    font-size: 0.9rem;
+    color: rgba(11,23,32,0.55);
+    font-style: italic;
+    margin-bottom: 24px;
+    min-height: 20px;
+  }
+
+  #folder-status.loaded { color: var(--pink-deep); font-style: normal; }
+
+  /* Deities detected */
+  #deity-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 24px;
+    min-height: 32px;
+  }
+
+  .deity-tag {
+    padding: 4px 14px;
+    border-radius: 20px;
+    background: var(--blue-dim);
+    border: 1px solid rgba(166,234,255,0.55);
+    color: var(--pink-deep);
+    font-size: 0.85rem;
+  }
+
+  /* Song entry */
+  .divider {
+    border: none;
+    border-top: 1px solid rgba(255,116,177,0.14);
+    margin: 24px 0;
+  }
+
+  #song-list-input {
+    width: 100%;
+    background: #FFFFFF;
+    border: 1px solid rgba(255,116,177,0.16);
+    border-radius: 8px;
+    padding: 14px 16px;
+    color: var(--text-primary);
+    font-family: 'EB Garamond', serif;
+    font-size: 1rem;
+    line-height: 1.7;
+    resize: vertical;
+    min-height: 160px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  #song-list-input:focus {
+    border-color: rgba(255,116,177,0.38);
+    box-shadow: 0 6px 18px rgba(11,23,32,0.06);
+  }
+
+  #song-list-input::placeholder { color: rgba(11,23,32,0.28); font-style: italic; }
+
+  .hint {
+    font-size: 0.82rem;
+    color: rgba(11,23,32,0.45);
+    margin-top: 8px;
+    font-style: italic;
+  }
+
+  /* Match preview */
+  #match-preview { margin-top: 20px; }
+
+  .match-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.92rem;
+    margin-bottom: 6px;
+    transition: background 0.15s;
+  }
+
+  .match-item.found     { background: var(--blue-dim); color: var(--blue-deep); }
+  .match-item.not-found { background: var(--yellow-dim); color: var(--yellow-deep); }
+
+  .match-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .found     .match-dot { background: var(--blue); }
+  .not-found .match-dot { background: var(--pink); }
+
+  .match-deity {
+    font-size: 0.78rem;
+    padding: 2px 9px;
+    border-radius: 10px;
+    background: var(--pink-dim);
+    color: var(--pink-deep);
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  /* Start button */
+  .start-btn {
+    display: block;
+    width: 100%;
+    margin-top: 28px;
+    padding: 16px;
+    background: linear-gradient(135deg, var(--pink), var(--pink-deep));
+    border: none;
+    border-radius: 10px;
+    color: #fff;
+    font-family: 'Cinzel Decorative', serif;
+    font-size: 1rem;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.25s;
+    box-shadow: 0 8px 26px rgba(255,116,177,0.18);
+  }
+
+  .start-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(255,116,177,0.22);
+  }
+
+  .start-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* ── PRESENTATION SCREEN ── */
+  #presentation-screen {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 8% 12%, rgba(255,116,177,0.16) 0%, transparent 42%),
+      radial-gradient(ellipse at 96% 88%, rgba(166,234,255,0.22) 0%, transparent 48%),
+      radial-gradient(ellipse at 55% 8%, rgba(255,235,118,0.20) 0%, transparent 34%),
+      var(--slide-bg);
+    flex-direction: column;
+  }
+
+  /* Top bar */
+  #pres-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    background:
+      linear-gradient(90deg, rgba(255,116,177,0.12), rgba(255,235,118,0.18), rgba(166,234,255,0.16)),
+      rgba(255,255,255,0.94);
+    border-bottom: 1px solid rgba(255,116,177,0.18);
+    box-shadow: 0 3px 14px rgba(46,36,48,0.05);
+    flex-shrink: 0;
+    gap: 16px;
+  }
+
+  #pres-title-bar {
+    font-family: 'Cinzel Decorative', serif;
+    font-size: clamp(0.75rem, 2vw, 1rem);
+    color: var(--pink-deep);
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+  }
+
+  #slide-counter {
+    font-size: 0.82rem;
+    color: var(--pink-deep);
+    background: rgba(255,255,255,0.70);
+    border: 1px solid rgba(255,116,177,0.14);
+    border-radius: 999px;
+    padding: 3px 10px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .topbar-btn {
+    padding: 6px 14px;
+    background: rgba(255,255,255,0.72);
+    border: 1px solid rgba(255,116,177,0.30);
+    border-radius: 999px;
+    color: var(--pink-deep);
+    font-family: 'EB Garamond', serif;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+
+  .topbar-btn:hover {
+    background: var(--yellow-dim);
+    border-color: var(--pink);
+    color: var(--text-primary);
+  }
+
+  /* Slide area */
+  #slide-area {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    position: relative;
+    background:
+      linear-gradient(90deg, rgba(255,116,177,0.05), rgba(255,255,255,0.92) 42%, rgba(166,234,255,0.06)),
+      #FFFFFF;
+  }
+
+  /* Image panel — 1/3 */
+  #slide-image-panel {
+    width: 33.333%;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+    background:
+      linear-gradient(160deg, rgba(255,116,177,0.10), rgba(255,235,118,0.14), rgba(166,234,255,0.12)),
+      #FFFFFF;
+  }
+
+  #slide-deity-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+    transition: opacity 0.6s ease;
+  }
+
+  /* Gradient fade into lyrics panel */
+  #slide-image-panel::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(to right, transparent 62%, rgba(255,255,255,0.96) 100%),
+      linear-gradient(to bottom, rgba(255,235,118,0.08) 0%, transparent 30%);
+    pointer-events: none;
+  }
+
+  /* Pink–blue shimmer strip at the join */
+  #slide-image-panel::before {
+    content: '';
+    position: absolute;
+    top: 0; right: 0; bottom: 0;
+    width: 3px;
+    background: linear-gradient(to bottom, var(--pink), var(--blue), var(--yellow), var(--pink));
+    opacity: 0.5;
+    z-index: 3;
+    pointer-events: none;
+  }
+
+  .image-deity-name {
+    position: absolute;
+    bottom: 20px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-family: 'Cinzel Decorative', serif;
+    font-size: clamp(0.65rem, 1.4vw, 0.9rem);
+    color: var(--pink-deep);
+    text-shadow: 0 2px 8px rgba(255,255,255,0.6);
+    letter-spacing: 0.12em;
+    z-index: 4;
+  }
+
+  /* No-image fallback */
+  #slide-image-panel.no-image {
+    background:
+      radial-gradient(circle at 30% 24%, rgba(255,116,177,0.26) 0%, transparent 40%),
+      radial-gradient(circle at 72% 70%, rgba(166,234,255,0.32) 0%, transparent 45%),
+      linear-gradient(160deg, rgba(255,235,118,0.22), rgba(255,255,255,0.94));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .no-image-logo {
+    width: clamp(64px, 22vw, 260px);
+    height: auto;
+    opacity: 0.42;
+    user-select: none;
+    display: block;
+    margin: 0 auto;
+    pointer-events: none;
+  }
+
+  /* Lyrics panel — 2/3 */
+  #slide-lyrics-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: clamp(20px, 3vw, 52px);
+    overflow-y: auto;
+    position: relative;
+    background:
+      radial-gradient(ellipse at top right, rgba(166,234,255,0.13) 0%, transparent 44%),
+      radial-gradient(ellipse at bottom left, rgba(255,235,118,0.14) 0%, transparent 38%),
+      rgba(255,255,255,0.82);
+  }
+
+  #slide-song-title {
+    font-family: 'Cinzel Decorative', serif;
+    font-size: clamp(1rem, 2.4vw, 1.75rem);
+    color: var(--blue-deep);
+    margin-bottom: clamp(12px, 2vw, 28px);
+    letter-spacing: 0.05em;
+    line-height: 1.3;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255,116,177,0.18);
+    position: relative;
+  }
+
+  /* Coloured underline accent */
+  #slide-song-title::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 72px;
+    height: 2px;
+    background: linear-gradient(to right, var(--pink), var(--yellow), transparent);
+  }
+
+  #slide-lyrics {
+    font-family: 'Tiro Devanagari Sanskrit', 'EB Garamond', Georgia, serif;
+    font-size: clamp(1.45rem, 3.3vw, 2.45rem);
+    line-height: 1.65;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    flex: 1;
+    margin-bottom: 0;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.72);
+  }
+
+  /* Slide-in animation */
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Corner ornaments — Prasanthi tri-colour */
+  .corner-ornament { position: absolute; width: 56px; height: 56px; opacity: 0.2; pointer-events: none; }
+  .corner-ornament.tl { top: 10px; left: 10px; }
+  .corner-ornament.br { bottom: 10px; right: 10px; transform: rotate(180deg); }
+
+  /* Nav bar */
+  #nav-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 14px 24px;
+    background:
+      linear-gradient(90deg, rgba(166,234,255,0.20), rgba(255,235,118,0.20), rgba(255,116,177,0.14)),
+      rgba(255,255,255,0.94);
+    border-top: 1px solid rgba(255,116,177,0.18);
+    box-shadow: 0 -3px 14px rgba(46,36,48,0.05);
+    flex-shrink: 0;
+  }
+
+  .nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 28px;
+    background: rgba(255,255,255,0.72);
+    border: 1px solid rgba(255,116,177,0.32);
+    border-radius: 999px;
+    color: var(--pink-deep);
+    font-family: 'Cinzel Decorative', serif;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 130px;
+    justify-content: center;
+    box-shadow: 0 4px 14px rgba(46,36,48,0.05);
+  }
+
+  .nav-btn:hover:not(:disabled) {
+    background: var(--yellow-dim);
+    border-color: var(--pink);
+    color: var(--text-primary);
+    box-shadow: 0 8px 24px rgba(255,116,177,0.18);
+  }
+
+  .nav-btn:disabled { opacity: 0.38; cursor: default; box-shadow: none; }
+  .nav-btn svg { width: 18px; height: 18px; }
+
+  /* Song indicator dots */
+  #song-dots {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    overflow-x: auto;
+    max-width: 380px;
+    padding: 4px;
+  }
+
+  .song-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.82);
+    border: 1px solid rgba(255,116,177,0.34);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.2s;
+  }
+
+  .song-dot.active {
+    background: linear-gradient(135deg, var(--pink), var(--yellow), var(--blue));
+    border-color: var(--pink-deep);
+    box-shadow: 0 0 10px rgba(255,116,177,0.50);
+    transform: scale(1.3);
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,116,177,0.34); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255,116,177,0.58); }
+
+  @media (max-width: 700px) {
+    #slide-image-panel { width: 38%; }
+    .nav-btn { min-width: 90px; padding: 10px 14px; font-size: 0.62rem; }
+    .setup-card { padding: 24px 18px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════
+     SETUP SCREEN
+════════════════════════════════════ -->
+<div id="setup-screen">
+  <!-- Place your local logo at assets/sssso-logo-final.png to use here -->
+  <img class="app-logo" src="assets/sssso-logo-final.png" alt="Sai logo">
+  <h1 class="app-title">Sri Sathya Sai Bhajans Slides Maker</h1>
+  <p class="app-subtitle">"When you sing bhajans, dwell on the meaning of the song and the message of each name and form of God." - Bhagawan Baba</p>
+
+  <div class="setup-card">
+
+    <!-- Step 1 -->
+    <div class="section-label">① Select Bhajan Library Folder</div>
+    <button class="folder-btn" onclick="selectFolder()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+      </svg>
+      Open Library Folder
+    </button>
+    <div id="folder-status">No folder selected</div>
+    <div id="deity-list"></div>
+
+    <hr class="divider">
+
+    <!-- Step 2 -->
+    <div class="section-label">② Enter Today's Bhajan List</div>
+    <textarea id="song-list-input"
+      placeholder="Type the first few words of each bhajan, one per line:&#10;&#10;Jai Jai Sai Ram&#10;Om Namah Shivaya&#10;Govinda Govinda&#10;..."
+      oninput="previewMatches()"></textarea>
+    <div class="hint">One bhajan per line · Type enough words to uniquely identify the song</div>
+
+    <div id="match-preview"></div>
+
+    <button class="start-btn" id="start-btn" disabled onclick="startPresentation()">
+      Begin Bhajan Session
+    </button>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════
+     PRESENTATION SCREEN
+════════════════════════════════════ -->
+<div id="presentation-screen">
+  <!-- Top bar -->
+  <div id="pres-topbar">
+    <div id="pres-title-bar">Sai Bhajans</div>
+    <div id="slide-counter">1 / 1</div>
+    <button class="topbar-btn" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+    <button class="topbar-btn" onclick="exitPresentation()">✕ Exit</button>
+  </div>
+
+  <!-- Slide -->
+  <div id="slide-area">
+    <!-- Image 1/3 -->
+    <div id="slide-image-panel">
+      <img id="slide-deity-img" src="" alt="" />
+      <div class="image-deity-name" id="slide-deity-name"></div>
+    </div>
+
+    <!-- Lyrics 2/3 -->
+    <div id="slide-lyrics-panel">
+      <!-- Corner ornaments using Prasanthi tri-colour -->
+      <svg class="corner-ornament tl" viewBox="0 0 60 60" fill="none">
+        <path d="M5 55 Q5 5 55 5" stroke="#ff74b1" stroke-width="1.8" fill="none"/>
+        <path d="M5 35 Q20 5 55 5" stroke="#ffeb76" stroke-width="0.9" stroke-dasharray="3,4" fill="none"/>
+        <circle cx="5"  cy="55" r="3" fill="#ff74b1"/>
+        <circle cx="55" cy="5"  r="3" fill="#a6eaff"/>
+      </svg>
+
+      <div id="slide-song-title"></div>
+      <div id="slide-lyrics"></div>
+
+      <svg class="corner-ornament br" viewBox="0 0 60 60" fill="none">
+        <path d="M5 55 Q5 5 55 5" stroke="#a6eaff" stroke-width="1.8" fill="none"/>
+        <path d="M5 35 Q20 5 55 5" stroke="#ffeb76" stroke-width="0.9" stroke-dasharray="3,4" fill="none"/>
+        <circle cx="5"  cy="55" r="3" fill="#a6eaff"/>
+        <circle cx="55" cy="5"  r="3" fill="#ff74b1"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Navigation -->
+  <div id="nav-bar">
+    <button class="nav-btn" id="prev-btn" onclick="navigate(-1)" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M15 18l-6-6 6-6"/>
+      </svg>
+      Prev
+    </button>
+
+    <div id="song-dots"></div>
+
+    <button class="nav-btn" id="next-btn" onclick="navigate(1)">
+      Next
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M9 18l6-6-6-6"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+
+<script>
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let library = {};
+let session = [];
+let currentSlide = 0;
+
+
+// ═══════════════════════════════════════════
+// FOLDER LOADING
+// ═══════════════════════════════════════════
+const BUILT_IN_BHAJANS_PATH = 'assets/bhajans/';
+const IMAGE_EXTS = ['jpg','jpeg','png','gif','webp','bmp','svg'];
+const TEXT_EXTS  = ['txt'];
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function setFolderStatus(message, isLoaded = false) {
+  const statusEl = document.getElementById('folder-status');
+  statusEl.textContent = message;
+  statusEl.className = isLoaded ? 'loaded' : '';
+}
+
+function updateLibrarySummary(sourceLabel = 'library') {
+  const deityNames = Object.keys(library);
+  const totalSongs = deityNames.reduce((s, d) => s + Object.keys(library[d].songs).length, 0);
+
+  if (deityNames.length === 0) {
+    setFolderStatus('⚠ No deity sub-folders found. Please check folder structure.');
+  } else {
+    setFolderStatus(`✓ Loaded ${totalSongs} bhajans across ${deityNames.length} deity folders from ${sourceLabel}`, true);
+  }
+
+  const listEl = document.getElementById('deity-list');
+  listEl.innerHTML = deityNames.map(d =>
+    `<span class="deity-tag">${escapeHtml(d)} <span style="opacity:0.6;font-size:0.75em">(${Object.keys(library[d].songs).length})</span></span>`
+  ).join('');
+
+  previewMatches();
+}
+
+async function selectFolder() {
+  if (!window.showDirectoryPicker) {
+    setFolderStatus('⚠ No built-in assets/bhajans library was found, and this browser does not support folder picking. Please use Chrome or Edge, or serve a built-in assets/bhajans library.');
+    return;
+  }
+
+  try {
+    const dirHandle = await window.showDirectoryPicker({ mode: 'read' });
+    await loadLibrary(dirHandle);
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      setFolderStatus('⚠ Could not open folder: ' + err.message);
+    }
+  }
+}
+
+async function loadLibrary(rootHandle) {
+  library = {};
+
+  for await (const [name, handle] of rootHandle.entries()) {
+    if (handle.kind === 'directory') {
+      const deity = name;
+      library[deity] = { songs: {}, images: [] };
+
+      for await (const [fname, fhandle] of handle.entries()) {
+        if (fhandle.kind === 'file') {
+          const ext = fname.split('.').pop().toLowerCase();
+          if (TEXT_EXTS.includes(ext)) {
+            const file = await fhandle.getFile();
+            const text = await file.text();
+            library[deity].songs[fname] = text;
+          } else if (IMAGE_EXTS.includes(ext)) {
+            const file = await fhandle.getFile();
+            library[deity].images.push(file);
+          }
+        }
+      }
+    }
+  }
+
+  updateLibrarySummary('selected folder');
+}
+
+async function initLibraryLoad() {
+  setFolderStatus('Checking for built-in library at assets/bhajans...');
+
+  const loadedBuiltIn = await loadBuiltInLibrary();
+  if (loadedBuiltIn) return;
+
+  document.getElementById('deity-list').innerHTML = '';
+  if (window.showDirectoryPicker) {
+    setFolderStatus('No built-in assets/bhajans library found. Please pick your bhajan library folder.');
+  } else {
+    setFolderStatus('⚠ No built-in assets/bhajans library found. Folder picking is only supported in Chrome or Edge.');
+  }
+}
+
+async function loadBuiltInLibrary() {
+  try {
+    if (await loadBuiltInLibraryFromManifest()) return true;
+  } catch (err) {
+    console.info('Could not load assets/bhajans/library.json:', err);
+  }
+
+  try {
+    if (await loadBuiltInLibraryFromDirectoryListing()) return true;
+  } catch (err) {
+    console.info('Could not load assets/bhajans directory listing:', err);
+  }
+
+  return false;
+}
+
+async function loadBuiltInLibraryFromManifest() {
+  const manifestUrl = new URL('library.json', new URL(BUILT_IN_BHAJANS_PATH, window.location.href));
+  const response = await fetch(manifestUrl, { cache: 'no-store' });
+  if (!response.ok) return false;
+
+  const manifest = await response.json();
+  const nextLibrary = {};
+
+  const entries = Array.isArray(manifest.deities)
+    ? manifest.deities.map(item => [item.name, item])
+    : Object.entries(manifest);
+
+  for (const [deityName, details] of entries) {
+    if (!deityName || !details) continue;
+
+    const songs = Array.isArray(details.songs) ? details.songs : [];
+    const images = Array.isArray(details.images) ? details.images : [];
+    const deityBase = new URL(encodeURIComponent(deityName).replace(/%2F/g, '/') + '/', new URL(BUILT_IN_BHAJANS_PATH, window.location.href));
+    nextLibrary[deityName] = { songs: {}, images: [] };
+
+    for (const songName of songs) {
+      const songUrl = new URL(songName, deityBase);
+      const songResponse = await fetch(songUrl, { cache: 'no-store' });
+      if (songResponse.ok) {
+        nextLibrary[deityName].songs[songName.split('/').pop()] = await songResponse.text();
+      }
+    }
+
+    nextLibrary[deityName].images = images.map(imageName => new URL(imageName, deityBase).toString());
+  }
+
+  const totalSongs = Object.values(nextLibrary).reduce((total, deity) => total + Object.keys(deity.songs).length, 0);
+  if (totalSongs === 0) return false;
+
+  library = nextLibrary;
+  updateLibrarySummary('assets/bhajans');
+  return true;
+}
+
+async function loadBuiltInLibraryFromDirectoryListing() {
+  const baseUrl = new URL(BUILT_IN_BHAJANS_PATH, window.location.href);
+  const response = await fetch(baseUrl, { cache: 'no-store' });
+  if (!response.ok) return false;
+
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('text/html') && !contentType.includes('text/plain')) return false;
+
+  const baseHtml = await response.text();
+  const deityLinks = parseDirectoryListing(baseHtml, baseUrl).filter(link => link.isDirectory);
+  if (deityLinks.length === 0) return false;
+
+  const nextLibrary = {};
+
+  for (const deityLink of deityLinks) {
+    const deityName = deityLink.name;
+    const deityResponse = await fetch(deityLink.url, { cache: 'no-store' });
+    if (!deityResponse.ok) continue;
+
+    const deityHtml = await deityResponse.text();
+    const fileLinks = parseDirectoryListing(deityHtml, deityLink.url).filter(link => !link.isDirectory);
+    const songs = fileLinks.filter(link => TEXT_EXTS.includes(getExtension(link.name)));
+    const images = fileLinks.filter(link => IMAGE_EXTS.includes(getExtension(link.name)));
+
+    if (songs.length === 0 && images.length === 0) continue;
+
+    nextLibrary[deityName] = { songs: {}, images: images.map(link => link.url) };
+
+    for (const song of songs) {
+      const songResponse = await fetch(song.url, { cache: 'no-store' });
+      if (songResponse.ok) {
+        nextLibrary[deityName].songs[song.name] = await songResponse.text();
+      }
+    }
+  }
+
+  const totalSongs = Object.values(nextLibrary).reduce((total, deity) => total + Object.keys(deity.songs).length, 0);
+  if (totalSongs === 0) return false;
+
+  library = nextLibrary;
+  updateLibrarySummary('assets/bhajans');
+  return true;
+}
+
+function parseDirectoryListing(html, baseUrl) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const base = new URL(baseUrl, window.location.href);
+  const links = [];
+  const seen = new Set();
+
+  for (const anchor of doc.querySelectorAll('a[href]')) {
+    const href = anchor.getAttribute('href');
+    if (!href || href.startsWith('?') || href.startsWith('#') || href === '../') continue;
+
+    const url = new URL(href, base);
+    url.hash = '';
+    url.search = '';
+
+    if (!url.pathname.startsWith(base.pathname)) continue;
+
+    const relativePath = decodeURIComponent(url.pathname.slice(base.pathname.length));
+    const parts = relativePath.split('/').filter(Boolean);
+    if (parts.length !== 1) continue;
+
+    const name = parts[0];
+    const key = url.toString();
+    if (!name || seen.has(key)) continue;
+
+    seen.add(key);
+    links.push({
+      name,
+      url: key,
+      isDirectory: href.endsWith('/') || url.pathname.endsWith('/')
+    });
+  }
+
+  return links;
+}
+
+function getExtension(filename) {
+  const pieces = filename.split('.');
+  return pieces.length > 1 ? pieces.pop().toLowerCase() : '';
+}
+
+
+// ═══════════════════════════════════════════
+// SONG MATCHING
+// ═══════════════════════════════════════════
+function stripSectionHeading(text, labels) {
+  let cleaned = (text || '').trim();
+  const heading = new RegExp('^\\s*(?:' + labels.join('|') + ')\\s*[:\\-–—]?\\s*', 'i');
+  return cleaned.replace(heading, '').trim();
+}
+
+function splitBhajanText(rawText) {
+  const text = (rawText || '').replace(/\r\n/g, '\n').trim();
+  if (!text) return { lyrics: '', meaning: '' };
+
+  const meaningMarker = /(^|\n)\s*(?:meaning\s*\/\s*translation|meaning|translation|significance|explanation)\s*(?:(?::|\-|–|—)\s*|\n)/i;
+  const marker = text.match(meaningMarker);
+
+  if (marker && marker.index !== undefined) {
+    const markerStart = marker.index + (marker[0].startsWith('\n') ? 1 : 0);
+    const markerEnd   = marker.index + marker[0].length;
+
+    return {
+      lyrics: stripSectionHeading(text.slice(0, markerStart), ['lyrics', 'bhajan', 'song']),
+      meaning: stripSectionHeading(
+        text.slice(markerEnd),
+        ['meaning\\s*\\/\\s*translation', 'meaning', 'translation', 'significance', 'explanation']
+      )
+    };
+  }
+
+  return {
+    lyrics: stripSectionHeading(text, ['lyrics', 'bhajan', 'song']),
+    meaning: ''
+  };
+}
+
+
+function getLyricsOnly(rawText) {
+  return splitBhajanText(rawText).lyrics;
+}
+
+function findSong(query) {
+  const q = query.trim().toLowerCase();
+  if (!q) return null;
+
+  for (const deity of Object.keys(library)) {
+    for (const filename of Object.keys(library[deity].songs)) {
+      const nameWithoutExt = filename.replace(/\.txt$/i, '').toLowerCase();
+      const lyrics   = library[deity].songs[filename];
+      const lyricsOnly = getLyricsOnly(lyrics);
+      const firstLine = lyricsOnly.split(/\n/)[0].trim().toLowerCase();
+
+      if (nameWithoutExt.startsWith(q) ||
+          firstLine.startsWith(q)      ||
+          nameWithoutExt.includes(q)   ||
+          firstLine.includes(q)) {
+        return {
+          title:  filename.replace(/\.txt$/i, ''),
+          lyrics: lyrics.trim(),
+          deity:  deity
+        };
+      }
+    }
+  }
+  return null;
+}
+
+function previewMatches() {
+  const lines = document.getElementById('song-list-input').value
+    .split('\n').map(l => l.trim()).filter(Boolean);
+
+  const previewEl = document.getElementById('match-preview');
+  const startBtn  = document.getElementById('start-btn');
+
+  if (!lines.length || Object.keys(library).length === 0) {
+    previewEl.innerHTML = '';
+    startBtn.disabled = true;
+    return;
+  }
+
+  let foundCount = 0;
+  let html = '';
+
+  for (const line of lines) {
+    const match = findSong(line);
+    if (match) {
+      foundCount++;
+      html += `<div class="match-item found">
+        <span class="match-dot"></span>
+        <span>${escapeHtml(match.title)}</span>
+        <span class="match-deity">${escapeHtml(match.deity)}</span>
+      </div>`;
+    } else {
+      html += `<div class="match-item not-found">
+        <span class="match-dot"></span>
+        <span>${escapeHtml(line)}</span>
+        <span style="font-size:0.78rem;color:var(--pink-deep);opacity:0.75;margin-left:auto;">not found</span>
+      </div>`;
+    }
+  }
+
+  previewEl.innerHTML = html;
+  startBtn.disabled = foundCount === 0;
+}
+
+
+// ═══════════════════════════════════════════
+// SESSION BUILD & PRESENTATION
+// ═══════════════════════════════════════════
+function buildSession() {
+  const lines = document.getElementById('song-list-input').value
+    .split('\n').map(l => l.trim()).filter(Boolean);
+
+  session = [];
+  for (const line of lines) {
+    const match = findSong(line);
+    if (!match) continue;
+
+    const images    = library[match.deity]?.images || [];
+    const imageFile = images.length > 0
+      ? images[Math.floor(Math.random() * images.length)]
+      : null;
+
+    session.push({ ...match, imageFile });
+  }
+}
+
+function startPresentation() {
+  buildSession();
+  if (!session.length) return;
+
+  currentSlide = 0;
+  document.getElementById('setup-screen').style.display = 'none';
+  const pres = document.getElementById('presentation-screen');
+  pres.style.display = 'flex';
+
+  buildDots();
+  renderSlide(currentSlide);
+}
+
+function exitPresentation() {
+  document.getElementById('presentation-screen').style.display = 'none';
+  document.getElementById('setup-screen').style.display = 'flex';
+  if (document.fullscreenElement) document.exitFullscreen();
+}
+
+
+// ═══════════════════════════════════════════
+// SLIDE RENDERING
+// ═══════════════════════════════════════════
+function renderSlide(index) {
+  const slide = session[index];
+  if (!slide) return;
+
+  document.getElementById('pres-title-bar').textContent = slide.title;
+  document.getElementById('slide-counter').textContent  = `${index + 1} / ${session.length}`;
+
+  const lyricsEl = document.getElementById('slide-lyrics');
+  const titleEl  = document.getElementById('slide-song-title');
+
+  titleEl.style.animation  = 'none';
+  lyricsEl.style.animation = 'none';
+  requestAnimationFrame(() => {
+    titleEl.style.animation  = 'slideIn 0.4s ease forwards';
+    lyricsEl.style.animation = 'slideIn 0.5s ease 0.1s both';
+  });
+
+  titleEl.textContent  = slide.title;
+  lyricsEl.textContent = getLyricsOnly(slide.lyrics);
+
+  const imgPanel    = document.getElementById('slide-image-panel');
+  const imgEl       = document.getElementById('slide-deity-img');
+  const deityNameEl = document.getElementById('slide-deity-name');
+
+  deityNameEl.textContent = slide.deity;
+
+    if (slide.imageFile) {
+    imgPanel.classList.remove('no-image');
+    // Remove any leftover logo fallback
+    const old = imgPanel.querySelector('.no-image-logo');
+    if (old) old.remove();
+    imgEl.style.opacity = '0';
+    imgEl.onload = () => { imgEl.style.opacity = '1'; };
+    imgEl.src    = typeof slide.imageFile === 'string'
+      ? slide.imageFile
+      : URL.createObjectURL(slide.imageFile);
+    imgEl.style.display = 'block';
+  } else {
+    imgPanel.classList.add('no-image');
+    imgEl.style.display = 'none';
+    if (!imgPanel.querySelector('.no-image-logo')) {
+      const logoImg = document.createElement('img');
+      logoImg.className = 'no-image-logo';
+      logoImg.src = 'assets/sssso-logo-final.png';
+      logoImg.alt = 'logo';
+      imgPanel.appendChild(logoImg);
+    }
+  }
+
+  document.querySelectorAll('.song-dot').forEach((d, i) =>
+    d.classList.toggle('active', i === index)
+  );
+
+  document.getElementById('prev-btn').disabled = index === 0;
+  document.getElementById('next-btn').disabled = index === session.length - 1;
+
+  document.getElementById('slide-lyrics-panel').scrollTop = 0;
+}
+
+function navigate(dir) {
+  const next = currentSlide + dir;
+  if (next < 0 || next >= session.length) return;
+  currentSlide = next;
+  renderSlide(currentSlide);
+}
+
+function buildDots() {
+  document.getElementById('song-dots').innerHTML = session.map((s, i) =>
+    `<div class="song-dot${i === 0 ? ' active' : ''}" title="${escapeHtml(s.title)}" onclick="jumpToSlide(${i})"></div>`
+  ).join('');
+}
+
+function jumpToSlide(i) {
+  currentSlide = i;
+  renderSlide(currentSlide);
+}
+
+
+// ═══════════════════════════════════════════
+// KEYBOARD + FULLSCREEN
+// ═══════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (document.getElementById('presentation-screen').style.display !== 'flex') return;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
+    e.preventDefault(); navigate(1);
+  } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+    e.preventDefault(); navigate(-1);
+  } else if (e.key === 'Escape') {
+    exitPresentation();
+  } else if (e.key === 'f' || e.key === 'F') {
+    toggleFullscreen();
+  }
+});
+
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.getElementById('presentation-screen').requestFullscreen();
+  } else {
+    document.exitFullscreen();
+  }
+}
+
+initLibraryLoad();
+</script>
+</body>
+</html>
