@@ -90,6 +90,7 @@ def index():
 @app.route('/search')
 def search():
     q = request.args.get('q', '').strip()
+    qn = normalize_text(q)
     limit = int(request.args.get('limit', '10'))
     mode = request.args.get('mode', 'combined').lower()  # tfidf | fuzzy | combined
     if not q:
@@ -105,7 +106,18 @@ def search():
 
         qv = _vectorizer.transform([q])
         sims = cosine_similarity(qv, _matrix)[0]
-        idx_order = np.argsort(-sims)[:limit]
+        # initial ordering by TF-IDF similarity
+        idx_order = np.argsort(-sims)
+        # ensure any exact normalized-title matches appear first
+        # consider normalized equality or prefix/containment as an exact-like match
+        exact_idxs = [i for i, sid in enumerate(_ids) if (lambda t: t == qn or qn.startswith(t) or t.startswith(qn))(normalize_text(_titles.get(sid, '')))]
+        # move exact indices to front preserving their order
+        idx_list = [int(i) for i in idx_order]
+        for ei in reversed(exact_idxs):
+            if ei in idx_list:
+                idx_list.remove(ei)
+            idx_list.insert(0, ei)
+        idx_order = idx_list[:limit]
     else:
         # fuzzy-only: ensure titles present
         if not _titles:
@@ -116,9 +128,13 @@ def search():
         for i, sid in enumerate(_ids):
             title = _titles.get(sid, '')
             deity = _deities.get(sid, '')
-            score_title = fuzz.token_sort_ratio(qn, normalize_text(title)) if title else 0
+            tnorm = normalize_text(title)
+            score_title = fuzz.token_sort_ratio(qn, tnorm) if title else 0
             score_deity = fuzz.token_sort_ratio(qn, normalize_text(deity)) if deity else 0
             score = max(score_title, score_deity, 0)
+            # explicit exact-match boost (highest possible fuzzy score)
+            if tnorm == qn or qn.startswith(tnorm) or tnorm.startswith(qn):
+                score = 100
             scores.append((i, score))
         # sort by fuzzy score desc
         scores.sort(key=lambda x: -x[1])
@@ -134,14 +150,17 @@ def search():
         elif mode == 'combined':
             tfidf_score = float(sims[idx])
             title = _titles.get(sid, '')
-            fuzzy_title = fuzz.token_sort_ratio(normalize_text(q), normalize_text(title)) / 100.0
+            fuzzy_title = fuzz.token_sort_ratio(qn, normalize_text(title)) / 100.0
             cur.execute("SELECT deity, tags FROM songs WHERE id=?", (sid,))
             _row = cur.fetchone()
             deity = _row['deity'] if _row else ''
-            fuzzy_deity = fuzz.token_sort_ratio(normalize_text(q), normalize_text(deity)) / 100.0
+            fuzzy_deity = fuzz.token_sort_ratio(qn, normalize_text(deity)) / 100.0
             qlen = len(q)
             fuzzy_weight = 0.35 if qlen <= 30 else 0.15
             score = (0.85 * tfidf_score) + (fuzzy_weight * max(fuzzy_title, fuzzy_deity))
+            # boost exact normalized title matches to ensure top placement
+            if normalize_text(title) == qn or qn.startswith(normalize_text(title)) or normalize_text(title).startswith(qn):
+                score = max(score, 0.99)
         else:  # fuzzy-only
             # score was computed earlier as integer 0-100 in scores list; convert to 0-1
             # to fetch that, compute again for this sid
@@ -225,7 +244,7 @@ def autocomplete():
     # ensure titles available
     if not _titles:
         build_index()
-    # compute fuzzy score against titles and deity
+    # compute fuzzy score against titles and deity, but prioritize exact normalized matches
     qn = normalize_text(q)
     scores = []
     conn = get_db_connection()
@@ -241,6 +260,8 @@ def autocomplete():
         dnorm = normalize_text(deity)
         score_deity = fuzz.token_sort_ratio(qn, dnorm) if deity else 0
         score = max(score_title, score_deity)
+        if tnorm == qn:
+            score = 100
         if score > 20:
             scores.append((sid, score, title, deity))
     conn.close()
