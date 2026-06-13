@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify, send_from_directory
 import threading
 import sqlite3
 import os
+import sys
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
@@ -9,9 +10,17 @@ from rapidfuzz import fuzz
 import unicodedata
 import re
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "bhajans.db")
+def get_base_path():
+    if getattr(sys, 'frozen', False):
+        return sys._MEIPASS
+    return os.path.dirname(__file__)
 
-app = Flask(__name__, static_folder='assets')
+BASE_PATH = get_base_path()
+DB_PATH = os.path.join(BASE_PATH, "bhajans.db")
+STATIC_PATH = os.path.join(BASE_PATH, 'assets')
+
+# Flask app should use the absolute static folder so bundled apps find assets
+app = Flask(__name__, static_folder=STATIC_PATH)
 
 # In-memory index objects
 _vectorizer = None
@@ -65,7 +74,7 @@ def build_index():
 
 @app.route('/')
 def index():
-    return send_from_directory('.', 'sai-bhajans.html')
+    return send_from_directory(BASE_PATH, 'sai-bhajans.html')
 
 @app.route('/search')
 def search():
