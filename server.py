@@ -25,6 +25,7 @@ _matrix = None
 _ids = []
 # title map for fuzzy matching: id -> original title
 _titles = {}
+_deities = {}
 _index_lock = threading.Lock()
 
 
@@ -60,22 +61,27 @@ def build_index():
         docs = []
         ids = []
         titles = {}
+        deities = {}
         for r in rows:
             text = " ".join([r['title'] or '', r['deity'] or '', r['tags'] or '', r['lyrics'] or ''])
             docs.append(text)
             ids.append(r['id'])
             titles[r['id']] = r['title'] or ''
+            deities[r['id']] = r['deity'] or ''
         if docs:
             _vectorizer = TfidfVectorizer(stop_words='english')
             _matrix = _vectorizer.fit_transform(docs)
             _ids = ids
             _titles.clear()
             _titles.update(titles)
+            _deities.clear()
+            _deities.update(deities)
         else:
             _vectorizer = None
             _matrix = None
             _ids = []
             _titles.clear()
+            _deities.clear()
 
 @app.route('/')
 def index():
@@ -104,12 +110,15 @@ def search():
         # fuzzy-only: ensure titles present
         if not _titles:
             build_index()
-        # compute fuzzy score across all titles and deities
+        # compute fuzzy score across all titles and deities (use cached deities)
         scores = []
+        qn = normalize_text(q)
         for i, sid in enumerate(_ids):
             title = _titles.get(sid, '')
-            # fetch deity quickly by querying DB (cached for top-N later)
-            score = max(fuzz.token_sort_ratio(normalize_text(q), normalize_text(title)), 0)
+            deity = _deities.get(sid, '')
+            score_title = fuzz.token_sort_ratio(qn, normalize_text(title)) if title else 0
+            score_deity = fuzz.token_sort_ratio(qn, normalize_text(deity)) if deity else 0
+            score = max(score_title, score_deity, 0)
             scores.append((i, score))
         # sort by fuzzy score desc
         scores.sort(key=lambda x: -x[1])
@@ -188,6 +197,23 @@ def create_song():
     # rebuild index in background
     threading.Thread(target=build_index, daemon=True).start()
     return jsonify({'id': song_id, 'status': 'created'})
+
+
+@app.route('/song/<int:song_id>', methods=['DELETE'])
+def delete_song(song_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('SELECT id FROM songs WHERE id=?', (song_id,))
+    r = cur.fetchone()
+    if not r:
+        conn.close()
+        return jsonify({'error': 'not found'}), 404
+    cur.execute('DELETE FROM songs WHERE id=?', (song_id,))
+    conn.commit()
+    conn.close()
+    # rebuild index in background
+    threading.Thread(target=build_index, daemon=True).start()
+    return jsonify({'status': 'deleted', 'id': song_id})
 
 
 @app.route('/autocomplete')

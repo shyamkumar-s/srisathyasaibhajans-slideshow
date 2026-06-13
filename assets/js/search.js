@@ -31,8 +31,54 @@ document.addEventListener('DOMContentLoaded', ()=>{
     data.results.forEach(r=>{
       const el = document.createElement('div')
       el.className = 'result'
-      el.innerHTML = `<strong>${r.title}</strong><div class="meta">${r.deity || ''} ${r.tags? ' · '+r.tags:''} · score:${(r.score||0).toFixed(3)}</div>`
-      el.onclick = ()=> addToTodaysList(r)
+      const titleDiv = document.createElement('div')
+      titleDiv.style.display = 'flex'
+      titleDiv.style.alignItems = 'center'
+      titleDiv.style.justifyContent = 'space-between'
+
+      const left = document.createElement('div')
+      left.innerHTML = `<strong>${r.title}</strong><div class="meta">${r.deity || ''} ${r.tags? ' · '+r.tags:''} · score:${(r.score||0).toFixed(3)}</div>`
+      left.style.cursor = 'pointer'
+      left.onclick = ()=> addToTodaysList(r)
+
+      const actions = document.createElement('div')
+      actions.style.display = 'flex'
+      actions.style.gap = '8px'
+
+      const addBtn = document.createElement('button')
+      addBtn.textContent = 'Add'
+      addBtn.className = 'folder-btn'
+      addBtn.style.padding = '6px 10px'
+      addBtn.onclick = (ev)=>{ ev.stopPropagation(); addToTodaysList(r) }
+
+      const delBtn = document.createElement('button')
+      delBtn.textContent = 'Delete'
+      delBtn.className = 'folder-btn btn-secondary'
+      delBtn.style.padding = '6px 10px'
+      delBtn.onclick = async (ev)=>{
+        ev.stopPropagation()
+        if(!confirm('Delete "' + r.title + '"? This cannot be undone.')) return
+        try{
+          const resp = await fetch('/song/' + r.id, { method: 'DELETE' })
+          const data = await resp.json()
+          if(resp.ok){
+            el.remove()
+            alert('Deleted: ' + r.title)
+            // optionally refresh preview/matches
+            if(typeof previewMatches === 'function') previewMatches()
+          } else {
+            alert('Error deleting: ' + (data.error || 'unknown'))
+          }
+        }catch(e){ alert('Delete failed: ' + e.message) }
+      }
+
+      actions.appendChild(addBtn)
+      actions.appendChild(delBtn)
+
+      titleDiv.appendChild(left)
+      titleDiv.appendChild(actions)
+
+      el.appendChild(titleDiv)
       results.appendChild(el)
     })
   }
