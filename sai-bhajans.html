@@ -52,8 +52,8 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    padding: 40px 20px;
+    justify-content: flex-start;
+    padding: 20px 20px 40px 20px;
     background:
       radial-gradient(ellipse at 20% 10%, rgba(255,116,177,0.12) 0%, transparent 55%),
       radial-gradient(ellipse at 80% 90%, rgba(166,234,255,0.10) 0%, transparent 55%),
@@ -69,6 +69,8 @@
     animation: pulse-glow 3s ease-in-out infinite;
     filter: drop-shadow(0 6px 18px rgba(255,116,177,0.16));
   }
+
+  .page-header { display:flex; flex-direction:column; align-items:center; gap:6px; margin-bottom:18px }
 
   @keyframes pulse-glow {
     0%, 100% { filter: drop-shadow(0 0 12px rgba(255,116,177,0.35)); }
@@ -137,6 +139,33 @@
     border-color: var(--pink);
     box-shadow: 0 8px 30px rgba(11,23,32,0.06);
   }
+
+  /* Modal styles matching setup-card */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(11,23,32,0.36);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1200;
+    padding: 24px;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal-card {
+    background: var(--card-bg);
+    border: 1px solid rgba(255,116,177,0.12);
+    border-radius: 12px;
+    padding: 20px;
+    width: min(900px, 100%);
+    box-shadow: 0 10px 40px rgba(11,23,32,0.08);
+  }
+
+  .modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:12px; }
+
+  .btn-secondary { background: transparent; border: 1px solid rgba(11,23,32,0.06); color: var(--text-primary); }
 
   .folder-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
 
@@ -560,31 +589,44 @@
     .nav-btn { min-width: 90px; padding: 10px 14px; font-size: 0.62rem; }
     .setup-card { padding: 24px 18px; }
   }
-</style>
+
+  </style>
 </head>
 <body>
+  <div class="page-header">
+    <img class="app-logo" src="assets/sssso-logo-final.png" alt="Sai logo" />
+    <h1 class="app-title">Sri Sathya Sai Bhajans</h1>
+    <div class="app-subtitle">Create today's bhajan list and present slides</div>
+  </div>
 
-<!-- ════════════════════════════════════
-     SETUP SCREEN
-════════════════════════════════════ -->
-<div id="setup-screen">
-  <!-- Place your local logo at assets/sssso-logo-final.png to use here -->
-  <img class="app-logo" src="assets/sssso-logo-final.png" alt="Sai logo">
-  <h1 class="app-title">Sri Sathya Sai Bhajans Session</h1>
-  <p class="app-subtitle">"When you sing bhajans, dwell on the meaning of the song and the message of each name and form of God." - Bhagawan Baba</p>
-
+  <div id="setup-screen">
   <div class="setup-card">
 
     <!-- Step 1 -->
-    <div class="section-label">① Select Bhajan Library Folder</div>
-    <button class="folder-btn" onclick="selectFolder()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-        <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
-      </svg>
-      Open Library Folder
-    </button>
-    <div id="folder-status">No folder selected</div>
-    <div id="deity-list"></div>
+    <div class="section-label">① Search & Add to Today's Bhajan List</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+      <input id="q" placeholder="Search bhajans or titles" style="flex:1;padding:10px;border-radius:8px;border:1px solid rgba(255,116,177,0.12)" />
+      <select id="mode" style="padding:10px;border-radius:8px;border:1px solid rgba(255,116,177,0.12)">
+        <option value="combined">Combined</option>
+        <option value="tfidf">TF-IDF</option>
+        <option value="fuzzy">Fuzzy</option>
+      </select>
+      <button id="search" class="folder-btn" style="padding:10px 14px">Search</button>
+      <button id="add-manual" class="folder-btn" style="padding:10px 14px">Add Manually</button>
+    </div>
+    <div id="search-results" style="margin-bottom:12px"></div>
+
+    <!-- Add new song modal -->
+    <div id="modal" class="modal-overlay" role="dialog" aria-hidden="true">
+      <div class="modal-card">
+        <h3 style="margin-bottom:8px">Add new bhajan</h3>
+        <div style="margin-bottom:8px"><label>Title: <input id="new-title" style="width:100%"/></label></div>
+        <div style="margin-bottom:8px"><label>Deity: <input id="new-deity" style="width:100%"/></label></div>
+        <div style="margin-bottom:8px"><label>Tags (comma separated): <input id="new-tags" style="width:100%"/></label></div>
+        <div style="margin-bottom:8px"><label>Lyrics:<br/><textarea id="new-lyrics" style="width:100%;height:220px"></textarea></label></div>
+        <div class="modal-actions"><button id="save-new" class="folder-btn">Save</button> <button id="cancel-new" class="folder-btn btn-secondary">Cancel</button></div>
+      </div>
+    </div>
 
     <hr class="divider">
 
@@ -680,6 +722,7 @@ let currentSlide = 0;
 // FOLDER LOADING
 // ═══════════════════════════════════════════
 const BUILT_IN_BHAJANS_PATH = 'assets/bhajans/';
+const BUILT_IN_IMAGES_PATH = 'assets/images/';
 const IMAGE_EXTS = ['jpg','jpeg','png','gif','webp','bmp','svg'];
 const TEXT_EXTS  = ['txt'];
 
@@ -707,6 +750,11 @@ function updateLibrarySummary(sourceLabel = 'library') {
   } else {
     setFolderStatus(`✓ Loaded ${totalSongs} bhajans across ${deityNames.length} deity folders from ${sourceLabel}`, true);
   }
+
+  // debug: print deity image counts
+  try {
+    console.debug('library deities:', deityNames.map(d => ({ name: d, songs: Object.keys(library[d].songs).length, images: (library[d].images||[]).length })));
+  } catch (e) {}
 
   const listEl = document.getElementById('deity-list');
   listEl.innerHTML = deityNames.map(d =>
@@ -774,19 +822,46 @@ async function initLibraryLoad() {
 }
 
 async function loadBuiltInLibrary() {
+  let loaded = false;
   try {
-    if (await loadBuiltInLibraryFromManifest()) return true;
+    if (await loadBuiltInLibraryFromManifest()) loaded = true;
   } catch (err) {
     console.info('Could not load assets/bhajans/library.json:', err);
   }
 
   try {
-    if (await loadBuiltInLibraryFromDirectoryListing()) return true;
+    if (await loadBuiltInLibraryFromDirectoryListing()) loaded = true;
   } catch (err) {
     console.info('Could not load assets/bhajans directory listing:', err);
   }
 
-  return false;
+  // If we loaded songs from either source, also attempt to merge images from assets/images
+  try {
+    await loadBuiltInImages();
+  } catch (err) {
+    console.info('Could not load assets/images listing:', err);
+  }
+
+  return loaded;
+}
+
+async function loadBuiltInImages() {
+  try {
+    const resp = await fetch('/images_manifest', { cache: 'no-store' });
+    if (!resp.ok) return false;
+    const manifest = await resp.json();
+    // manifest is deity -> [url,...]
+    for (const [deityName, urls] of Object.entries(manifest)) {
+      if (!library[deityName]) library[deityName] = { songs: {}, images: [] };
+      const existing = new Set((library[deityName].images || []).map(String));
+      for (const u of urls) if (!existing.has(u)) library[deityName].images.push(u);
+    }
+    updateLibrarySummary('assets/images');
+    return true;
+  } catch (e) {
+    console.info('images_manifest fetch failed', e);
+    return false;
+  }
 }
 
 async function loadBuiltInLibraryFromManifest() {
@@ -979,35 +1054,71 @@ function findSong(query) {
   return null;
 }
 
-function previewMatches() {
+let _matchedSongs = {}; // line -> result object
+
+async function previewMatches() {
   const lines = document.getElementById('song-list-input').value
     .split('\n').map(l => l.trim()).filter(Boolean);
 
   const previewEl = document.getElementById('match-preview');
   const startBtn  = document.getElementById('start-btn');
 
-  if (!lines.length || Object.keys(library).length === 0) {
+  if (!lines.length) {
     previewEl.innerHTML = '';
     startBtn.disabled = true;
+    _matchedSongs = {};
     return;
   }
+  // For each line, search and fetch full song so we can show a snippet in preview
+  const promises = lines.map(async (line) => {
+    try {
+      const resp = await fetch(`/search?q=${encodeURIComponent(line)}&limit=1&mode=combined`);
+      const data = await resp.json();
+      if (data.results && data.results.length > 0 && data.results[0].score > 0.05) {
+        const match = data.results[0];
+        // try to fetch full lyrics for a snippet
+        try {
+          const sresp = await fetch(`/song/${match.id}`);
+          if (sresp.ok) {
+            const full = await sresp.json();
+            match.lyrics = full.lyrics || match.lyrics || '';
+          }
+        } catch (e) {
+          // ignore
+        }
+        _matchedSongs[line] = match;
+        const snippet = match.lyrics ? getLyricsOnly(match.lyrics).split('\n').slice(0,3).join(' ').trim() : '';
+        return { line, match, snippet };
+      } else {
+        delete _matchedSongs[line];
+        return { line, match: null, snippet: '' };
+      }
+    } catch (e) {
+      delete _matchedSongs[line];
+      return { line, match: null, snippet: '' };
+    }
+  });
 
+  const results = await Promise.all(promises);
   let foundCount = 0;
   let html = '';
-
-  for (const line of lines) {
-    const match = findSong(line);
-    if (match) {
+  for (const r of results) {
+    if (r.match) {
       foundCount++;
       html += `<div class="match-item found">
         <span class="match-dot"></span>
-        <span>${escapeHtml(match.title)}</span>
-        <span class="match-deity">${escapeHtml(match.deity)}</span>
+        <div style="display:flex;flex-direction:column;gap:4px;width:100%">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-weight:600">${escapeHtml(r.match.title)}</span>
+            <span class="match-deity">${escapeHtml(r.match.deity)}</span>
+          </div>
+          ${r.snippet ? `<div style="font-size:0.9rem;color:rgba(11,23,32,0.72);">${escapeHtml(r.snippet)}</div>` : ''}
+        </div>
       </div>`;
     } else {
       html += `<div class="match-item not-found">
         <span class="match-dot"></span>
-        <span>${escapeHtml(line)}</span>
+        <span>${escapeHtml(r.line)}</span>
         <span style="font-size:0.78rem;color:var(--pink-deep);opacity:0.75;margin-left:auto;">not found</span>
       </div>`;
     }
@@ -1021,26 +1132,70 @@ function previewMatches() {
 // ═══════════════════════════════════════════
 // SESSION BUILD & PRESENTATION
 // ═══════════════════════════════════════════
-function buildSession() {
+async function buildSession() {
   const lines = document.getElementById('song-list-input').value
     .split('\n').map(l => l.trim()).filter(Boolean);
 
+  // Ensure images are loaded into `library` before we try to resolve deity images
+  await ensureImagesLoaded();
+
   session = [];
   for (const line of lines) {
-    const match = findSong(line);
+    const match = _matchedSongs[line];
     if (!match) continue;
-
-    const images    = library[match.deity]?.images || [];
-    const imageFile = images.length > 0
-      ? images[Math.floor(Math.random() * images.length)]
-      : null;
-
-    session.push({ ...match, imageFile });
+    // fetch full song (including lyrics) from server
+    let lyrics = match.lyrics || '';
+    try {
+      const resp = await fetch(`/song/${match.id}`);
+      if (resp.ok) {
+        const full = await resp.json();
+        lyrics = full.lyrics || lyrics;
+      }
+    } catch (e) {
+      // ignore and use existing match.lyrics if any
+    }
+    // choose a deity image from the built-in or selected library if available
+    let imageFile = null;
+    try {
+      const key = findLibraryDeityKey(match.deity);
+      if (key && library[key] && Array.isArray(library[key].images) && library[key].images.length > 0) {
+        const imgs = library[key].images;
+        // pick a random image from available images for this deity
+        imageFile = imgs[Math.floor(Math.random() * imgs.length)];
+      } else {
+        console.info('No deity image found for', match.deity, 'matchedKey=', key);
+      }
+    } catch (e) { imageFile = null; }
+    session.push({ id: match.id, title: match.title, deity: match.deity, tags: match.tags, lyrics: lyrics, imageFile });
   }
 }
 
-function startPresentation() {
-  buildSession();
+// If library has no images merged yet, fetch images manifest and merge now.
+async function ensureImagesLoaded() {
+  try {
+    // quick check: any deity with images?
+    for (const k of Object.keys(library || {})) {
+      if (Array.isArray(library[k].images) && library[k].images.length > 0) return;
+    }
+    // fetch manifest and merge
+    const resp = await fetch('/images_manifest', { cache: 'no-store' });
+    if (!resp.ok) return;
+    const manifest = await resp.json();
+    for (const [deityName, urls] of Object.entries(manifest)) {
+      if (!library[deityName]) library[deityName] = { songs: {}, images: [] };
+      const existing = new Set((library[deityName].images || []).map(String));
+      for (const u of urls) if (!existing.has(u)) library[deityName].images.push(u);
+    }
+    console.info('ensureImagesLoaded: merged images manifest');
+  } catch (e) {
+    console.info('ensureImagesLoaded failed', e);
+  }
+}
+
+async function startPresentation() {
+  // ensure preview matches are up-to-date before building session
+  await previewMatches();
+  await buildSession();
   if (!session.length) return;
 
   currentSlide = 0;
@@ -1087,6 +1242,18 @@ function renderSlide(index) {
   const deityNameEl = document.getElementById('slide-deity-name');
 
   deityNameEl.textContent = slide.deity;
+
+    // if session didn't include an image, try to resolve one now from the loaded library
+    if (!slide.imageFile) {
+      try {
+        const key = findLibraryDeityKey(slide.deity);
+        if (key && library[key] && Array.isArray(library[key].images) && library[key].images.length > 0) {
+          slide.imageFile = library[key].images[Math.floor(Math.random() * library[key].images.length)];
+        } else {
+          console.info('render: no images for deity', slide.deity, 'resolvedKey=', key);
+        }
+      } catch (e) { /* ignore */ }
+    }
 
     if (slide.imageFile) {
     imgPanel.classList.remove('no-image');
@@ -1139,6 +1306,24 @@ function jumpToSlide(i) {
   renderSlide(currentSlide);
 }
 
+// Try to find the best matching deity key in `library` for a given deity name.
+function findLibraryDeityKey(deityName) {
+  if (!deityName || !library) return null;
+  if (library[deityName]) return deityName;
+  const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const target = norm(deityName);
+  // map of normalized key -> original key
+  const map = {};
+  for (const k of Object.keys(library)) map[norm(k)] = k;
+  if (map[target]) return map[target];
+  // try substring / startsWith matches
+  for (const k of Object.keys(library)) {
+    const kn = norm(k);
+    if (kn.includes(target) || target.includes(kn)) return k;
+  }
+  return null;
+}
+
 
 // ═══════════════════════════════════════════
 // KEYBOARD + FULLSCREEN
@@ -1166,5 +1351,7 @@ function toggleFullscreen() {
 
 initLibraryLoad();
 </script>
+</script>
+<script src="assets/js/search.js"></script>
 </body>
 </html>
