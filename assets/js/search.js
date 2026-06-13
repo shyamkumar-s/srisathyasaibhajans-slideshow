@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
       delBtn.style.padding = '6px 10px'
       delBtn.onclick = async (ev)=>{
         ev.stopPropagation()
-        if(!confirm('Delete "' + r.title + '"? This cannot be undone.')) return
+        if(!confirm('Delete "' + r.title + '"? This will delete the bhajan from the database and cannot be undone. Are you sure?')) return
         try{
           const resp = await fetch('/song/' + r.id, { method: 'DELETE' })
           const data = await resp.json()
