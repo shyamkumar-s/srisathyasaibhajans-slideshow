@@ -3,9 +3,6 @@ import threading
 import sqlite3
 import os
 import sys
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-import numpy as np
 from rapidfuzz import fuzz
 import unicodedata
 import re
@@ -28,6 +25,7 @@ _matrix = None
 _ids = []
 # title map for fuzzy matching: id -> original title
 _titles = {}
+_index_lock = threading.Lock()
 
 
 def normalize_text(s: str) -> str:
@@ -51,26 +49,33 @@ def get_db_connection():
 
 def build_index():
     global _vectorizer, _matrix, _ids
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT id, title, deity, tags, lyrics FROM songs")
-    rows = cur.fetchall()
-    conn.close()
-    docs = []
-    ids = []
-    for r in rows:
-        text = " ".join([r['title'] or '', r['deity'] or '', r['tags'] or '', r['lyrics'] or ''])
-        docs.append(text)
-        ids.append(r['id'])
-        _titles[r['id']] = r['title'] or ''
-    if docs:
-        _vectorizer = TfidfVectorizer(stop_words='english')
-        _matrix = _vectorizer.fit_transform(docs)
-        _ids = ids
-    else:
-        _vectorizer = None
-        _matrix = None
-        _ids = []
+    with _index_lock:
+        from sklearn.feature_extraction.text import TfidfVectorizer
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT id, title, deity, tags, lyrics FROM songs")
+        rows = cur.fetchall()
+        conn.close()
+        docs = []
+        ids = []
+        titles = {}
+        for r in rows:
+            text = " ".join([r['title'] or '', r['deity'] or '', r['tags'] or '', r['lyrics'] or ''])
+            docs.append(text)
+            ids.append(r['id'])
+            titles[r['id']] = r['title'] or ''
+        if docs:
+            _vectorizer = TfidfVectorizer(stop_words='english')
+            _matrix = _vectorizer.fit_transform(docs)
+            _ids = ids
+            _titles.clear()
+            _titles.update(titles)
+        else:
+            _vectorizer = None
+            _matrix = None
+            _ids = []
+            _titles.clear()
 
 @app.route('/')
 def index():
@@ -89,6 +94,9 @@ def search():
             build_index()
         if _vectorizer is None or _matrix is None:
             return jsonify({'results': []})
+        from sklearn.metrics.pairwise import cosine_similarity
+        import numpy as np
+
         qv = _vectorizer.transform([q])
         sims = cosine_similarity(qv, _matrix)[0]
         idx_order = np.argsort(-sims)[:limit]
@@ -245,7 +253,8 @@ def images_manifest():
     return jsonify(result)
 
 if __name__ == '__main__':
-    # Build index on startup if DB exists
+    print("Starting Sri Sathya Sai Bhajans server on http://127.0.0.1:8000", flush=True)
+    # Build the search index in the background so packaged macOS builds start listening promptly.
     if os.path.exists(DB_PATH):
-        build_index()
+        threading.Thread(target=build_index, daemon=True).start()
     app.run(host='0.0.0.0', port=8000)
