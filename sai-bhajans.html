@@ -665,6 +665,8 @@
     <div id="pres-title-bar">Sai Bhajans</div>
     <div id="slide-counter">1 / 1</div>
     <button class="topbar-btn" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+    <!-- Export PDF (disabled due to blank-PDF issue) -->
+    <!-- <button class="topbar-btn" onclick="exportSlidepackPDF()">Export PDF</button> -->
     <button class="topbar-btn" onclick="exitPresentation()">✕ Exit</button>
   </div>
 
@@ -1359,8 +1361,48 @@ function toggleFullscreen() {
   }
 }
 
+async function exportSlidepackPDF(){
+  // PDF export temporarily disabled because it produced blank PDFs for some slides.
+  // The original implementation is preserved in source control; re-enable after fixing capture issues.
+  alert('PDF export is temporarily disabled (known issue).');
+  return;
+}
+
 initLibraryLoad();
 </script>
+<script>
+  // Load PDF export libraries: prefer local files under /assets/vendor/ for offline use,
+  // fall back to CDN if local not present.
+  (function(){
+    const libs = [
+      { local: '/assets/vendor/html2canvas.min.js', cdn: 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', check: () => !!window.html2canvas },
+      { local: '/assets/vendor/jspdf.umd.min.js', cdn: 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', check: () => !!window.jspdf }
+    ];
+
+    function loadScript(src){
+      return new Promise((resolve, reject)=>{
+        const s = document.createElement('script'); s.src = src; s.async = false;
+        s.onload = () => resolve(src); s.onerror = () => reject(src);
+        document.head.appendChild(s);
+      });
+    }
+
+    async function ensureLib(lib){
+      if(lib.check()) return;
+      try{
+        // try local first
+        const resp = await fetch(lib.local, { method: 'HEAD' });
+        if(resp.ok){ await loadScript(lib.local); return; }
+      }catch(e){ /* ignore */ }
+      // fallback to CDN
+      try{ await loadScript(lib.cdn); }catch(e){ console.warn('Failed to load', lib.cdn); }
+    }
+
+    // sequentially ensure libs to preserve order
+    (async ()=>{
+      for(const l of libs) await ensureLib(l);
+    })();
+  })();
 </script>
 <script src="assets/js/search.js"></script>
 </body>
