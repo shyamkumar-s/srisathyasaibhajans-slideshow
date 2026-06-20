@@ -27,6 +27,10 @@ document.addEventListener('DOMContentLoaded', ()=>{
     const resp = await fetch(`/search?q=${encodeURIComponent(query)}&mode=${mode.value}&limit=20`)
     const data = await resp.json()
     results.innerHTML = ''
+    // Show only top 5 entries visually by limiting height and enabling scroll
+    results.style.maxHeight = '280px' // ~5 items tall (adjust if your item height differs)
+    results.style.overflowY = 'auto'
+    results.style.boxSizing = 'border-box'
     if(!data.results || data.results.length===0){ results.innerHTML = '<div>No results</div>'; return }
     data.results.forEach(r=>{
       const el = document.createElement('div')
