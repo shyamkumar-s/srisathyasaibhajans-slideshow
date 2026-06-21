@@ -165,6 +165,51 @@
 
   .modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:12px; }
 
+  .session-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-top: 20px;
+  }
+
+  .saved-sessions-list {
+    display: grid;
+    gap: 12px;
+    margin-top: 12px;
+  }
+
+  .session-card {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.9);
+    border: 1px solid rgba(255,116,177,0.15);
+    border-radius: 12px;
+  }
+
+  .session-card .session-meta {
+    display: grid;
+    gap: 4px;
+    min-width: 220px;
+  }
+
+  .session-card button {
+    padding: 8px 12px;
+    min-width: 96px;
+  }
+
+  .saved-sessions-empty {
+    color: rgba(11,23,32,0.6);
+    padding: 10px 14px;
+    border: 1px dashed rgba(11,23,32,0.25);
+    border-radius: 10px;
+    background: rgba(255,255,255,0.6);
+  }
+
   .btn-secondary { background: transparent; border: 1px solid rgba(11,23,32,0.06); color: var(--text-primary); }
 
   .folder-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
@@ -648,6 +693,18 @@
     <div class="hint">One bhajan per line · Type enough words to uniquely identify the song</div>
 
     <div id="match-preview"></div>
+
+    <div class="section-label">③ Save / Restore Sessions</div>
+    <div class="session-actions">
+      <button id="save-session-btn" class="folder-btn" style="padding:10px 14px">Save This Session</button>
+      <span id="session-save-status" style="font-size:0.95rem;color:rgba(11,23,32,0.68)"></span>
+    </div>
+    <div id="saved-sessions-panel">
+      <div class="section-label" style="margin-top:10px">Saved Sessions</div>
+      <div id="saved-sessions-list" class="saved-sessions-list">
+        <div class="saved-sessions-empty">No saved sessions yet.</div>
+      </div>
+    </div>
 
     <button class="start-btn" id="start-btn" disabled onclick="startPresentation()">
       Begin Bhajan Session
@@ -1140,6 +1197,115 @@ async function previewMatches() {
   startBtn.disabled = foundCount === 0;
 }
 
+async function fetchSavedSessions() {
+  try {
+    const resp = await fetch('/sessions');
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    return Array.isArray(data.sessions) ? data.sessions : [];
+  } catch (e) {
+    console.warn('Unable to load saved sessions', e);
+    return [];
+  }
+}
+
+function renderSavedSessions(sessions) {
+  const panel = document.getElementById('saved-sessions-list');
+  if (!panel) return;
+  if (!sessions || sessions.length === 0) {
+    panel.innerHTML = '<div class="saved-sessions-empty">No saved sessions yet.</div>';
+    return;
+  }
+  panel.innerHTML = sessions.map(s => `
+    <div class="session-card">
+      <div class="session-meta">
+        <div><strong>${escapeHtml(s.date_label)}</strong> · ${s.song_count} song${s.song_count === 1 ? '' : 's'}</div>
+        <div style="color:rgba(11,23,32,0.6);font-size:0.92rem;">Saved ${escapeHtml(new Date(s.created_at).toLocaleString())}</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end">
+        <button class="folder-btn" type="button" onclick="openSavedSession(${s.id})">Open Session</button>
+        <button class="folder-btn btn-secondary" type="button" onclick="deleteSavedSession(${s.id}, this)">Delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function saveCurrentSession() {
+  await previewMatches();
+  const lines = document.getElementById('song-list-input').value
+    .split('\n').map(l => l.trim()).filter(Boolean);
+  const status = document.getElementById('session-save-status');
+  status.textContent = '';
+  if (!lines.length) {
+    alert('Enter the bhajan list first before saving.');
+    return;
+  }
+  const missing = lines.filter(line => !_matchedSongs[line]);
+  if (missing.length) {
+    alert('Please resolve all bhajans before saving. Unmatched lines: ' + missing.join('; '));
+    return;
+  }
+  const song_ids = lines.map(line => _matchedSongs[line].id);
+  try {
+    const resp = await fetch('/session', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ song_ids, raw_lines: lines.join('\n') })
+    });
+    const data = await resp.json();
+    if (resp.ok) {
+      status.textContent = `Saved session for ${escapeHtml(data.date_label)}.`;
+      await refreshSessions();
+    } else {
+      alert('Unable to save session: ' + (data.error || 'unknown error'));
+    }
+  } catch (e) {
+    alert('Saving failed: ' + e.message);
+  }
+}
+
+async function openSavedSession(sessionId) {
+  try {
+    const resp = await fetch(`/session/${sessionId}`);
+    if (!resp.ok) {
+      const data = await resp.json();
+      alert('Unable to open session: ' + (data.error || 'not found'));
+      return;
+    }
+    const sessionData = await resp.json();
+    const input = document.getElementById('song-list-input');
+    input.value = sessionData.raw_lines || '';
+    await previewMatches();
+    if (document.getElementById('start-btn').disabled) {
+      alert('This saved session cannot be started because one or more songs are not currently matched.');
+      return;
+    }
+    startPresentation();
+  } catch (e) {
+    alert('Could not open session: ' + e.message);
+  }
+}
+
+async function deleteSavedSession(sessionId, button) {
+  if (!confirm('Delete this saved session? This cannot be undone.')) return;
+  try {
+    const resp = await fetch(`/session/${sessionId}`, { method: 'DELETE' });
+    const data = await resp.json();
+    if (resp.ok) {
+      await refreshSessions();
+    } else {
+      alert('Unable to delete session: ' + (data.error || 'unknown'));
+    }
+  } catch (e) {
+    alert('Delete failed: ' + e.message);
+  }
+}
+
+async function refreshSessions() {
+  const sessions = await fetchSavedSessions();
+  renderSavedSessions(sessions);
+}
+
 
 // ═══════════════════════════════════════════
 // SESSION BUILD & PRESENTATION
@@ -1369,6 +1535,9 @@ async function exportSlidepackPDF(){
 }
 
 initLibraryLoad();
+refreshSessions();
+const saveSessionBtn = document.getElementById('save-session-btn');
+if (saveSessionBtn) saveSessionBtn.addEventListener('click', saveCurrentSession);
 </script>
 <script>
   // Load PDF export libraries: prefer local files under /assets/vendor/ for offline use,
