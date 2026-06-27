@@ -326,6 +326,34 @@ def delete_session(session_id):
     conn.close()
     return jsonify({'status': 'deleted', 'id': session_id})
 
+@app.route('/session/<int:session_id>', methods=['PUT'])
+def update_session(session_id):
+    body = request.get_json() or {}
+    song_ids = body.get('song_ids')
+    raw_lines = body.get('raw_lines', '').strip()
+    if not song_ids or not isinstance(song_ids, list) or len(song_ids) == 0:
+        return jsonify({'error': 'song_ids list required'}), 400
+    song_ids = [int(i) for i in song_ids]
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('SELECT id FROM sessions WHERE id = ?', (session_id,))
+    if not cur.fetchone():
+        conn.close()
+        return jsonify({'error': 'not found'}), 404
+    cur.execute('UPDATE sessions SET song_ids = ?, raw_lines = ? WHERE id = ?',
+                (json.dumps(song_ids), raw_lines, session_id))
+    conn.commit()
+    # Get updated session data
+    cur.execute('SELECT id, date_label, created_at, song_ids, raw_lines FROM sessions WHERE id = ?', (session_id,))
+    r = cur.fetchone()
+    conn.close()
+    return jsonify({
+        'id': r['id'],
+        'date_label': r['date_label'],
+        'created_at': r['created_at'],
+        'status': 'updated'
+    })
+
 @app.route('/autocomplete')
 def autocomplete():
     q = request.args.get('q', '').strip()

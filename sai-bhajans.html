@@ -785,6 +785,7 @@
 let library = {};
 let session = [];
 let currentSlide = 0;
+let currentLoadedSessionId = null;
 
 
 // ═══════════════════════════════════════════
@@ -1136,6 +1137,8 @@ async function previewMatches() {
     previewEl.innerHTML = '';
     startBtn.disabled = true;
     _matchedSongs = {};
+    currentLoadedSessionId = null;
+    document.getElementById('session-save-status').textContent = '';
     return;
   }
   // For each line, search and fetch full song so we can show a snippet in preview
@@ -1246,15 +1249,18 @@ async function saveCurrentSession() {
     return;
   }
   const song_ids = lines.map(line => _matchedSongs[line].id);
+  const method = currentLoadedSessionId ? 'PUT' : 'POST';
+  const url = currentLoadedSessionId ? `/session/${currentLoadedSessionId}` : '/session';
   try {
-    const resp = await fetch('/session', {
-      method: 'POST',
+    const resp = await fetch(url, {
+      method: method,
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ song_ids, raw_lines: lines.join('\n') })
     });
     const data = await resp.json();
     if (resp.ok) {
-      status.textContent = `Saved session for ${escapeHtml(data.date_label)}.`;
+      const action = method === 'PUT' ? 'Updated' : 'Saved';
+      status.textContent = `${action} session for ${escapeHtml(data.date_label)}.`;
       await refreshSessions();
     } else {
       alert('Unable to save session: ' + (data.error || 'unknown error'));
@@ -1275,12 +1281,14 @@ async function openSavedSession(sessionId) {
     const sessionData = await resp.json();
     const input = document.getElementById('song-list-input');
     input.value = sessionData.raw_lines || '';
+    currentLoadedSessionId = sessionData.id;
+    const status = document.getElementById('session-save-status');
+    status.textContent = `Editing session from ${escapeHtml(sessionData.date_label)}`;
     await previewMatches();
     if (document.getElementById('start-btn').disabled) {
       alert('This saved session cannot be started because one or more songs are not currently matched.');
       return;
     }
-    startPresentation();
   } catch (e) {
     alert('Could not open session: ' + e.message);
   }
