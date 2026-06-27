@@ -300,6 +300,40 @@
 
   .start-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
+  .session-actions {
+    display: grid;
+    gap: 10px;
+    margin-top: 28px;
+  }
+
+  .session-actions .start-btn {
+    margin-top: 0;
+  }
+
+  .export-session-btn {
+    width: 100%;
+    padding: 13px 16px;
+    background: rgba(255,255,255,0.78);
+    border: 1px solid rgba(25,116,154,0.28);
+    border-radius: 10px;
+    color: var(--blue-deep);
+    font-family: 'Cinzel Decorative', serif;
+    font-size: 0.88rem;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: all 0.22s;
+  }
+
+  .export-session-btn:hover:not(:disabled) {
+    background: var(--blue-dim);
+    border-color: var(--blue-deep);
+  }
+
+  .export-session-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
   /* ── PRESENTATION SCREEN ── */
   #presentation-screen {
     display: none;
@@ -611,6 +645,10 @@
 
   <div id="setup-screen">
   <div class="setup-card">
+    <div id="library-state" hidden>
+      <div id="folder-status"></div>
+      <div id="deity-list"></div>
+    </div>
 
     <!-- Step 1 -->
     <div class="section-label">① Search & Add to Today's Bhajan List</div>
@@ -649,9 +687,14 @@
 
     <div id="match-preview"></div>
 
-    <button class="start-btn" id="start-btn" disabled onclick="startPresentation()">
-      Begin Bhajan Session
-    </button>
+    <div class="session-actions">
+      <button class="start-btn" id="start-btn" disabled onclick="startPresentation()">
+        Begin Bhajan Session
+      </button>
+      <button class="export-session-btn" id="setup-export-btn" disabled onclick="exportSlidepackPDF()">
+        Export PDF
+      </button>
+    </div>
   </div>
 </div>
 
@@ -665,8 +708,7 @@
     <div id="pres-title-bar">Sai Bhajans</div>
     <div id="slide-counter">1 / 1</div>
     <button class="topbar-btn" onclick="toggleFullscreen()">⛶ Fullscreen</button>
-    <!-- Export PDF (disabled due to blank-PDF issue) -->
-    <!-- <button class="topbar-btn" onclick="exportSlidepackPDF()">Export PDF</button> -->
+    <button class="topbar-btn" id="export-pdf-btn" onclick="exportSlidepackPDF()">Export PDF</button>
     <button class="topbar-btn" onclick="exitPresentation()">✕ Exit</button>
   </div>
 
@@ -1074,10 +1116,12 @@ async function previewMatches() {
 
   const previewEl = document.getElementById('match-preview');
   const startBtn  = document.getElementById('start-btn');
+  const exportBtn = document.getElementById('setup-export-btn');
 
   if (!lines.length) {
     previewEl.innerHTML = '';
     startBtn.disabled = true;
+    if (exportBtn) exportBtn.disabled = true;
     _matchedSongs = {};
     return;
   }
@@ -1138,6 +1182,7 @@ async function previewMatches() {
 
   previewEl.innerHTML = html;
   startBtn.disabled = foundCount === 0;
+  if (exportBtn) exportBtn.disabled = foundCount === 0;
 }
 
 
@@ -1205,18 +1250,27 @@ async function ensureImagesLoaded() {
 }
 
 async function startPresentation() {
+  const pres = document.getElementById('presentation-screen');
+  document.getElementById('setup-screen').style.display = 'none';
+  pres.style.display = 'flex';
+  document.getElementById('pres-title-bar').textContent = 'Preparing session...';
+  document.getElementById('slide-counter').textContent = '';
+  const fullscreenAttempt = requestPresentationFullscreen();
+
   // ensure preview matches are up-to-date before building session
   await previewMatches();
   await buildSession();
-  if (!session.length) return;
+  if (!session.length) {
+    await fullscreenAttempt;
+    exitPresentation();
+    return;
+  }
 
   currentSlide = 0;
-  document.getElementById('setup-screen').style.display = 'none';
-  const pres = document.getElementById('presentation-screen');
-  pres.style.display = 'flex';
 
   buildDots();
   renderSlide(currentSlide);
+  await fullscreenAttempt;
 }
 
 function exitPresentation() {
@@ -1355,27 +1409,547 @@ document.addEventListener('keydown', e => {
 
 function toggleFullscreen() {
   if (!document.fullscreenElement) {
-    document.getElementById('presentation-screen').requestFullscreen();
+    requestPresentationFullscreen();
   } else {
     document.exitFullscreen();
   }
 }
 
+function requestPresentationFullscreen() {
+  const pres = document.getElementById('presentation-screen');
+  if (!pres || document.fullscreenElement || !pres.requestFullscreen) {
+    return Promise.resolve();
+  }
+  return pres.requestFullscreen().catch(err => {
+    console.info('Fullscreen request was blocked:', err);
+  });
+}
+
 async function exportSlidepackPDF(){
-  // PDF export temporarily disabled because it produced blank PDFs for some slides.
-  // The original implementation is preserved in source control; re-enable after fixing capture issues.
-  alert('PDF export is temporarily disabled (known issue).');
-  return;
+  setExportBusy(true);
+  try {
+    const presentationVisible = document.getElementById('presentation-screen').style.display === 'flex';
+    if (!presentationVisible) {
+      await previewMatches();
+      await buildSession();
+    }
+
+    if (!session.length) {
+      alert('Add at least one matched bhajan before exporting.');
+      return;
+    }
+
+    const jsPDF = await ensureJsPDF();
+    if (document.fonts && document.fonts.ready) {
+      await document.fonts.ready;
+    }
+
+    const pdf = new jsPDF({
+      orientation: 'landscape',
+      unit: 'pt',
+      format: 'a4',
+      compress: true
+    });
+
+    pdf.setProperties({
+      title: 'Sri Sathya Sai Bhajans Session',
+      subject: 'Bhajan session slide pack',
+      creator: 'Sri Sathya Sai Bhajans'
+    });
+
+    if (pdf.setDisplayMode) {
+      pdf.setDisplayMode('fullpage', 'single', 'FullScreen');
+    }
+    if (pdf.viewerPreferences) {
+      pdf.viewerPreferences({
+        HideToolbar: true,
+        HideMenubar: true,
+        HideWindowUI: true,
+        FitWindow: true,
+        CenterWindow: true,
+        DisplayDocTitle: true
+      });
+    }
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    let firstPage = true;
+
+    for (let i = 0; i < session.length; i++) {
+      const renderedPages = await renderSlidePdfPages(session[i], i, session.length);
+      for (const pageImage of renderedPages) {
+        if (!firstPage) pdf.addPage();
+        pdf.addImage(pageImage, 'JPEG', 0, 0, pageWidth, pageHeight, undefined, 'FAST');
+        firstPage = false;
+      }
+    }
+
+    pdf.save(makeSessionPdfFileName());
+  } catch (err) {
+    console.error('PDF export failed:', err);
+    alert('Could not export PDF: ' + (err && err.message ? err.message : 'unknown error'));
+  } finally {
+    setExportBusy(false);
+  }
+}
+
+function setExportBusy(isBusy) {
+  const buttons = [
+    document.getElementById('setup-export-btn'),
+    document.getElementById('export-pdf-btn')
+  ];
+
+  for (const button of buttons) {
+    if (!button) continue;
+    if (isBusy) {
+      button.disabled = true;
+    } else if (button.id === 'setup-export-btn') {
+      const startBtn = document.getElementById('start-btn');
+      button.disabled = startBtn ? startBtn.disabled : true;
+    } else {
+      button.disabled = false;
+    }
+    button.textContent = isBusy ? 'Exporting PDF...' : 'Export PDF';
+  }
+}
+
+async function ensureJsPDF() {
+  if (window.jspdf && window.jspdf.jsPDF) return window.jspdf.jsPDF;
+
+  if (!window.__saiJsPdfLoadPromise) {
+    window.__saiJsPdfLoadPromise = (async () => {
+      const sources = [
+        '/assets/vendor/jspdf.umd.min.js',
+        'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+      ];
+
+      for (const src of sources) {
+        try {
+          if (src.startsWith('/')) {
+            const localCheck = await fetch(src, { method: 'HEAD' });
+            if (!localCheck.ok) continue;
+          }
+          await loadScriptForExport(src);
+          if (window.jspdf && window.jspdf.jsPDF) return window.jspdf.jsPDF;
+        } catch (err) {
+          console.warn('Could not load PDF library from', src, err);
+        }
+      }
+
+      throw new Error('PDF library could not be loaded.');
+    })();
+  }
+
+  await window.__saiJsPdfLoadPromise;
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    throw new Error('PDF library loaded without jsPDF.');
+  }
+  return window.jspdf.jsPDF;
+}
+
+function loadScriptForExport(src) {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = src;
+    script.async = false;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Failed to load ' + src));
+    document.head.appendChild(script);
+  });
+}
+
+function makeSessionPdfFileName() {
+  const stamp = new Date().toISOString().slice(0, 10);
+  return `Sai-Bhajans-Session-${stamp}.pdf`;
+}
+
+async function renderSlidePdfPages(slide, slideIndex, totalSlides) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1920;
+  canvas.height = 1080;
+  const ctx = canvas.getContext('2d');
+  const slideImage = await loadSlideExportImage(slide);
+  const textPlan = planSlideExportText(ctx, slide);
+  const pages = [];
+
+  for (let pageIndex = 0; pageIndex < textPlan.pages.length; pageIndex++) {
+    drawExportSlidePage(ctx, slide, slideImage, textPlan, pageIndex, slideIndex, totalSlides);
+    pages.push(canvas.toDataURL('image/jpeg', 0.92));
+  }
+
+  return pages;
+}
+
+function planSlideExportText(ctx, slide) {
+  const textX = 710;
+  const maxWidth = 1140;
+  const title = String(slide.title || 'Bhajan');
+  let titleFontSize = 46;
+  let titleLines = [];
+
+  do {
+    ctx.font = exportTitleFont(titleFontSize);
+    titleLines = wrapCanvasText(ctx, title, maxWidth);
+    if (titleLines.length <= 3 || titleFontSize <= 32) break;
+    titleFontSize -= 2;
+  } while (titleFontSize >= 32);
+
+  const titleLineHeight = Math.round(titleFontSize * 1.22);
+  const lyricTop = 84 + (titleLines.length * titleLineHeight) + 58;
+  const availableHeight = 1080 - lyricTop - 92;
+  const lyrics = String(getLyricsOnly(slide.lyrics || '') || '').trim();
+  let lyricFontSize = 54;
+  let lyricLines = [];
+  let lyricLineHeight = 0;
+  let maxLines = 0;
+
+  while (lyricFontSize > 30) {
+    ctx.font = exportLyricFont(lyricFontSize);
+    lyricLines = wrapCanvasTextWithBreaks(ctx, lyrics, maxWidth);
+    lyricLineHeight = Math.round(lyricFontSize * 1.42);
+    maxLines = Math.max(1, Math.floor(availableHeight / lyricLineHeight));
+    if (lyricLines.length <= maxLines) break;
+    lyricFontSize -= 2;
+  }
+
+  ctx.font = exportLyricFont(lyricFontSize);
+  lyricLines = wrapCanvasTextWithBreaks(ctx, lyrics, maxWidth);
+  lyricLineHeight = Math.round(lyricFontSize * 1.42);
+  maxLines = Math.max(1, Math.floor(availableHeight / lyricLineHeight));
+
+  const pages = [];
+  for (let i = 0; i < lyricLines.length; i += maxLines) {
+    pages.push(lyricLines.slice(i, i + maxLines));
+  }
+  if (!pages.length) pages.push(['']);
+
+  return {
+    textX,
+    maxWidth,
+    titleFontSize,
+    titleLineHeight,
+    titleLines,
+    lyricTop,
+    lyricFontSize,
+    lyricLineHeight,
+    pages
+  };
+}
+
+function drawExportSlidePage(ctx, slide, slideImage, textPlan, pageIndex, slideIndex, totalSlides) {
+  const w = ctx.canvas.width;
+  const h = ctx.canvas.height;
+  const imageW = 640;
+
+  ctx.clearRect(0, 0, w, h);
+  drawExportBackground(ctx, w, h);
+  drawExportImagePanel(ctx, slide, slideImage, imageW, h);
+  drawExportLyricsPanel(ctx, slide, textPlan, pageIndex, slideIndex, totalSlides);
+}
+
+function drawExportBackground(ctx, w, h) {
+  ctx.fillStyle = '#FFFDF6';
+  ctx.fillRect(0, 0, w, h);
+
+  let gradient = ctx.createRadialGradient(140, 130, 20, 140, 130, 760);
+  gradient.addColorStop(0, 'rgba(255,116,177,0.18)');
+  gradient.addColorStop(1, 'rgba(255,116,177,0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, w, h);
+
+  gradient = ctx.createRadialGradient(1780, 920, 20, 1780, 920, 780);
+  gradient.addColorStop(0, 'rgba(166,234,255,0.24)');
+  gradient.addColorStop(1, 'rgba(166,234,255,0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, w, h);
+
+  gradient = ctx.createRadialGradient(1050, 90, 20, 1050, 90, 620);
+  gradient.addColorStop(0, 'rgba(255,235,118,0.24)');
+  gradient.addColorStop(1, 'rgba(255,235,118,0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, w, h);
+}
+
+function drawExportImagePanel(ctx, slide, slideImage, imageW, h) {
+  const panelGradient = ctx.createLinearGradient(0, 0, imageW, h);
+  panelGradient.addColorStop(0, 'rgba(255,116,177,0.14)');
+  panelGradient.addColorStop(0.55, 'rgba(255,235,118,0.16)');
+  panelGradient.addColorStop(1, 'rgba(166,234,255,0.14)');
+  ctx.fillStyle = panelGradient;
+  ctx.fillRect(0, 0, imageW, h);
+
+  if (slideImage && slideImage.image) {
+    if (slideImage.isFallback) {
+      ctx.save();
+      ctx.globalAlpha = 0.42;
+      drawImageContain(ctx, slideImage.image, 135, 310, 370, 370);
+      ctx.restore();
+    } else {
+      drawImageCover(ctx, slideImage.image, 0, 0, imageW, h);
+    }
+  }
+
+  const fade = ctx.createLinearGradient(imageW * 0.56, 0, imageW, 0);
+  fade.addColorStop(0, 'rgba(255,255,255,0)');
+  fade.addColorStop(1, 'rgba(255,255,255,0.96)');
+  ctx.fillStyle = fade;
+  ctx.fillRect(0, 0, imageW, h);
+
+  const strip = ctx.createLinearGradient(0, 0, 0, h);
+  strip.addColorStop(0, '#FF74B1');
+  strip.addColorStop(0.35, '#A6EAFF');
+  strip.addColorStop(0.7, '#FFEB76');
+  strip.addColorStop(1, '#FF74B1');
+  ctx.fillStyle = strip;
+  ctx.globalAlpha = 0.55;
+  ctx.fillRect(imageW - 5, 0, 5, h);
+  ctx.globalAlpha = 1;
+
+  if (slide.deity) {
+    ctx.save();
+    ctx.font = exportDecorFont(28);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#B73572';
+    ctx.shadowColor = 'rgba(255,255,255,0.8)';
+    ctx.shadowBlur = 8;
+    ctx.fillText(String(slide.deity), imageW / 2, h - 48);
+    ctx.restore();
+  }
+}
+
+function drawExportLyricsPanel(ctx, slide, textPlan, pageIndex, slideIndex, totalSlides) {
+  const panelX = 640;
+  const panelW = 1280;
+  const lines = textPlan.pages[pageIndex] || [''];
+  const pageCount = textPlan.pages.length;
+
+  ctx.fillStyle = 'rgba(255,255,255,0.84)';
+  ctx.fillRect(panelX, 0, panelW, 1080);
+
+  drawExportCornerOrnaments(ctx, panelX, panelW);
+
+  ctx.save();
+  ctx.font = exportTitleFont(textPlan.titleFontSize);
+  ctx.fillStyle = '#19749A';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+
+  let y = 86;
+  for (const line of textPlan.titleLines) {
+    y += textPlan.titleLineHeight;
+    ctx.fillText(line, textPlan.textX, y);
+  }
+
+  const underlineY = y + 28;
+  const underline = ctx.createLinearGradient(textPlan.textX, underlineY, textPlan.textX + 190, underlineY);
+  underline.addColorStop(0, '#FF74B1');
+  underline.addColorStop(0.55, '#FFEB76');
+  underline.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = underline;
+  ctx.fillRect(textPlan.textX, underlineY, 190, 4);
+  ctx.restore();
+
+  ctx.save();
+  ctx.font = exportLyricFont(textPlan.lyricFontSize);
+  ctx.fillStyle = '#2E2430';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  y = textPlan.lyricTop;
+  for (const line of lines) {
+    if (line === '') {
+      y += Math.round(textPlan.lyricLineHeight * 0.7);
+      continue;
+    }
+    ctx.fillText(line, textPlan.textX, y);
+    y += textPlan.lyricLineHeight;
+  }
+  ctx.restore();
+
+  ctx.save();
+  ctx.font = '28px "EB Garamond", Georgia, serif';
+  ctx.fillStyle = 'rgba(183,53,114,0.76)';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  const part = pageCount > 1 ? ` - part ${pageIndex + 1}/${pageCount}` : '';
+  ctx.fillText(`${slideIndex + 1} / ${totalSlides}${part}`, 1860, 1038);
+  ctx.restore();
+}
+
+function drawExportCornerOrnaments(ctx, panelX, panelW) {
+  ctx.save();
+  ctx.globalAlpha = 0.22;
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = '#FF74B1';
+  ctx.beginPath();
+  ctx.moveTo(panelX + 36, 116);
+  ctx.quadraticCurveTo(panelX + 36, 36, panelX + 116, 36);
+  ctx.stroke();
+
+  ctx.strokeStyle = '#A6EAFF';
+  ctx.beginPath();
+  ctx.moveTo(panelX + panelW - 36, 964);
+  ctx.quadraticCurveTo(panelX + panelW - 36, 1044, panelX + panelW - 116, 1044);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function exportTitleFont(size) {
+  return `700 ${size}px "Cinzel Decorative", Georgia, serif`;
+}
+
+function exportDecorFont(size) {
+  return `${size}px "Cinzel Decorative", Georgia, serif`;
+}
+
+function exportLyricFont(size) {
+  return `${size}px "Tiro Devanagari Sanskrit", "EB Garamond", Georgia, serif`;
+}
+
+function wrapCanvasTextWithBreaks(ctx, text, maxWidth) {
+  const normalized = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  if (!normalized.trim()) return [''];
+
+  const result = [];
+  for (const rawLine of normalized.split('\n')) {
+    if (!rawLine.trim()) {
+      result.push('');
+      continue;
+    }
+    result.push(...wrapCanvasText(ctx, rawLine.trim(), maxWidth));
+  }
+  return result;
+}
+
+function wrapCanvasText(ctx, text, maxWidth) {
+  const words = String(text || '').split(/\s+/).filter(Boolean);
+  if (!words.length) return [''];
+
+  const lines = [];
+  let line = '';
+
+  for (const word of words) {
+    const testLine = line ? `${line} ${word}` : word;
+    if (ctx.measureText(testLine).width <= maxWidth) {
+      line = testLine;
+      continue;
+    }
+
+    if (line) lines.push(line);
+
+    if (ctx.measureText(word).width <= maxWidth) {
+      line = word;
+    } else {
+      const broken = breakLongCanvasWord(ctx, word, maxWidth);
+      lines.push(...broken.slice(0, -1));
+      line = broken[broken.length - 1] || '';
+    }
+  }
+
+  if (line) lines.push(line);
+  return lines.length ? lines : [''];
+}
+
+function breakLongCanvasWord(ctx, word, maxWidth) {
+  const parts = [];
+  let part = '';
+
+  for (const char of Array.from(word)) {
+    const next = part + char;
+    if (part && ctx.measureText(next).width > maxWidth) {
+      parts.push(part);
+      part = char;
+    } else {
+      part = next;
+    }
+  }
+
+  if (part) parts.push(part);
+  return parts;
+}
+
+async function loadSlideExportImage(slide) {
+  if (slide && slide.imageFile) {
+    try {
+      return { image: await loadImageFromSource(slide.imageFile), isFallback: false };
+    } catch (err) {
+      console.warn('Could not load slide image for export:', err);
+    }
+  }
+
+  try {
+    return { image: await loadImageFromSource('assets/sssso-logo-final.png'), isFallback: true };
+  } catch (err) {
+    console.warn('Could not load fallback logo for export:', err);
+    return { image: null, isFallback: true };
+  }
+}
+
+async function loadImageFromSource(source) {
+  const dataUrl = await imageSourceToDataUrl(source);
+  return loadImageElement(dataUrl);
+}
+
+async function imageSourceToDataUrl(source) {
+  if (source instanceof Blob) {
+    return blobToDataUrl(source);
+  }
+
+  if (typeof source === 'string') {
+    if (source.startsWith('data:')) return source;
+    const response = await fetch(source, { cache: 'force-cache' });
+    if (!response.ok) throw new Error('Image request failed: ' + response.status);
+    return blobToDataUrl(await response.blob());
+  }
+
+  throw new Error('Unsupported image source.');
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error('Could not read image.'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function loadImageElement(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Could not decode image.'));
+    img.src = dataUrl;
+  });
+}
+
+function drawImageCover(ctx, img, x, y, w, h) {
+  if (!img || !img.width || !img.height) return;
+  const scale = Math.max(w / img.width, h / img.height);
+  const sw = w / scale;
+  const sh = h / scale;
+  const sx = Math.max(0, (img.width - sw) / 2);
+  const sy = 0;
+  ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+}
+
+function drawImageContain(ctx, img, x, y, w, h) {
+  if (!img || !img.width || !img.height) return;
+  const scale = Math.min(w / img.width, h / img.height);
+  const dw = img.width * scale;
+  const dh = img.height * scale;
+  const dx = x + (w - dw) / 2;
+  const dy = y + (h - dh) / 2;
+  ctx.drawImage(img, dx, dy, dw, dh);
 }
 
 initLibraryLoad();
 </script>
 <script>
-  // Load PDF export libraries: prefer local files under /assets/vendor/ for offline use,
+  // Load PDF export library: prefer local files under /assets/vendor/ for offline use,
   // fall back to CDN if local not present.
   (function(){
     const libs = [
-      { local: '/assets/vendor/html2canvas.min.js', cdn: 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', check: () => !!window.html2canvas },
       { local: '/assets/vendor/jspdf.umd.min.js', cdn: 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', check: () => !!window.jspdf }
     ];
 
