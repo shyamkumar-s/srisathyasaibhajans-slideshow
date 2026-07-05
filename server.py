@@ -3,6 +3,8 @@ import threading
 import sqlite3
 import os
 import sys
+import json
+from datetime import datetime
 from rapidfuzz import fuzz
 import unicodedata
 import re
@@ -13,7 +15,17 @@ def get_base_path():
     return os.path.dirname(__file__)
 
 BASE_PATH = get_base_path()
-DB_PATH = os.path.join(BASE_PATH, "bhajans.db")
+# Allow the database to live outside the bundled app. Set BHAJANS_DB_PATH to an
+# external file to override the default bundled database. If that file does not
+# exist, fall back to the bundled database.
+BUNDLED_DB_PATH = os.path.join(BASE_PATH, "bhajans.db")
+_external_db = os.environ.get("BHAJANS_DB_PATH")
+if _external_db:
+    _external_db = os.path.abspath(os.path.expanduser(_external_db))
+if _external_db and os.path.isfile(_external_db):
+    DB_PATH = _external_db
+else:
+    DB_PATH = BUNDLED_DB_PATH
 STATIC_PATH = os.path.join(BASE_PATH, 'assets')
 
 # Flask app should use the absolute static folder so bundled apps find assets
@@ -48,6 +60,21 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
+def init_db():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS sessions (
+            id INTEGER PRIMARY KEY,
+            date_label TEXT,
+            created_at TEXT,
+            song_ids TEXT,
+            raw_lines TEXT
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
 def build_index():
     global _vectorizer, _matrix, _ids
     with _index_lock:
@@ -63,7 +90,8 @@ def build_index():
         titles = {}
         deities = {}
         for r in rows:
-            text = " ".join([r['title'] or '', r['deity'] or '', r['tags'] or '', r['lyrics'] or ''])
+            # tags holds the language, which should not be searchable
+            text = " ".join([r['title'] or '', r['deity'] or '', r['lyrics'] or ''])
             docs.append(text)
             ids.append(r['id'])
             titles[r['id']] = r['title'] or ''
@@ -235,6 +263,108 @@ def delete_song(song_id):
     return jsonify({'status': 'deleted', 'id': song_id})
 
 
+@app.route('/sessions')
+def list_sessions():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('SELECT id, date_label, created_at, song_ids FROM sessions ORDER BY created_at DESC')
+    rows = cur.fetchall()
+    sessions = []
+    for r in rows:
+        try:
+            song_ids = json.loads(r['song_ids'] or '[]')
+        except Exception:
+            song_ids = []
+        sessions.append({
+            'id': r['id'],
+            'date_label': r['date_label'],
+            'created_at': r['created_at'],
+            'song_count': len(song_ids)
+        })
+    conn.close()
+    return jsonify({'sessions': sessions})
+
+@app.route('/session', methods=['POST'])
+def create_session():
+    body = request.get_json() or {}
+    song_ids = body.get('song_ids')
+    raw_lines = body.get('raw_lines', '').strip()
+    if not song_ids or not isinstance(song_ids, list) or len(song_ids) == 0:
+        return jsonify({'error': 'song_ids list required'}), 400
+    song_ids = [int(i) for i in song_ids]
+    date_label = datetime.now().strftime('%d-%m-%Y')
+    created_at = datetime.utcnow().isoformat() + 'Z'
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('INSERT INTO sessions (date_label, created_at, song_ids, raw_lines) VALUES (?, ?, ?, ?)',
+                (date_label, created_at, json.dumps(song_ids), raw_lines))
+    conn.commit()
+    session_id = cur.lastrowid
+    conn.close()
+    return jsonify({'id': session_id, 'date_label': date_label, 'status': 'created'})
+
+@app.route('/session/<int:session_id>')
+def get_session(session_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('SELECT id, date_label, created_at, song_ids, raw_lines FROM sessions WHERE id = ?', (session_id,))
+    r = cur.fetchone()
+    conn.close()
+    if not r:
+        return jsonify({'error': 'not found'}), 404
+    try:
+        song_ids = json.loads(r['song_ids'] or '[]')
+    except Exception:
+        song_ids = []
+    return jsonify({
+        'id': r['id'],
+        'date_label': r['date_label'],
+        'created_at': r['created_at'],
+        'song_ids': song_ids,
+        'raw_lines': r['raw_lines'] or ''
+    })
+
+@app.route('/session/<int:session_id>', methods=['DELETE'])
+def delete_session(session_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('SELECT id FROM sessions WHERE id = ?', (session_id,))
+    if not cur.fetchone():
+        conn.close()
+        return jsonify({'error': 'not found'}), 404
+    cur.execute('DELETE FROM sessions WHERE id = ?', (session_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'status': 'deleted', 'id': session_id})
+
+@app.route('/session/<int:session_id>', methods=['PUT'])
+def update_session(session_id):
+    body = request.get_json() or {}
+    song_ids = body.get('song_ids')
+    raw_lines = body.get('raw_lines', '').strip()
+    if not song_ids or not isinstance(song_ids, list) or len(song_ids) == 0:
+        return jsonify({'error': 'song_ids list required'}), 400
+    song_ids = [int(i) for i in song_ids]
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('SELECT id FROM sessions WHERE id = ?', (session_id,))
+    if not cur.fetchone():
+        conn.close()
+        return jsonify({'error': 'not found'}), 404
+    cur.execute('UPDATE sessions SET song_ids = ?, raw_lines = ? WHERE id = ?',
+                (json.dumps(song_ids), raw_lines, session_id))
+    conn.commit()
+    # Get updated session data
+    cur.execute('SELECT id, date_label, created_at, song_ids, raw_lines FROM sessions WHERE id = ?', (session_id,))
+    r = cur.fetchone()
+    conn.close()
+    return jsonify({
+        'id': r['id'],
+        'date_label': r['date_label'],
+        'created_at': r['created_at'],
+        'status': 'updated'
+    })
+
 @app.route('/autocomplete')
 def autocomplete():
     q = request.args.get('q', '').strip()
@@ -300,6 +430,14 @@ def images_manifest():
     return jsonify(result)
 
 if __name__ == '__main__':
+    init_db()
+    if _external_db and DB_PATH == _external_db:
+        _db_source = "external (BHAJANS_DB_PATH)"
+    elif _external_db:
+        _db_source = "bundled fallback; BHAJANS_DB_PATH not found"
+    else:
+        _db_source = "bundled default"
+    print(f"Using database: {DB_PATH} ({_db_source})", flush=True)
     print("Starting Sri Sathya Sai Bhajans server on http://127.0.0.1:8000", flush=True)
     # Build the search index in the background so packaged macOS builds start listening promptly.
     if os.path.exists(DB_PATH):

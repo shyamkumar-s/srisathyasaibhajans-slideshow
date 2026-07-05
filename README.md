@@ -30,6 +30,29 @@ python server.py
 Notes:
 - Each song row now includes a `deity` column derived from the first-level folder under `assets/bhajans`.
 - Keep images inside the deity folders and store lyrics in the DB; the loader will parse deity and remaining subfolders as `tags`.
+
+# Database location
+
+By default the server uses the bundled `bhajans.db` located next to `server.py` (or inside the packaged app).
+
+To point the server at an external database, set the `BHAJANS_DB_PATH` environment variable to the file's path:
+
+```bash
+# Windows (PowerShell)
+$env:BHAJANS_DB_PATH = "D:\Samithi\bhajans.db"
+python server.py
+
+# macOS / Linux
+export BHAJANS_DB_PATH="/path/to/bhajans.db"
+python server.py
+```
+
+Behavior:
+- If `BHAJANS_DB_PATH` is set **and the file exists**, that external database is used.
+- If it is unset, or the path does not exist, the server falls back to the bundled `bhajans.db`.
+- The path supports `~` expansion and relative paths (resolved to an absolute path at startup).
+- On startup the server logs which database is in use, e.g. `Using database: D:\Samithi\bhajans.db (external (BHAJANS_DB_PATH))`.
+
 # Data model
 - Each song is stored in the SQLite table `songs` with columns: `id`, `title`, `deity`, `tags`, `lyrics`.
 - The previous `path` column is removed; images may be kept in the deity folders but lyrics are stored in DB.
