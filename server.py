@@ -1,19 +1,31 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_file, send_from_directory
 import threading
 import sqlite3
 import os
 import sys
+from io import BytesIO
+from zipfile import ZIP_DEFLATED, ZipFile
+import xml.etree.ElementTree as ET
 from rapidfuzz import fuzz
 import unicodedata
 import re
+from xml.sax.saxutils import escape as xml_escape
 
 def get_base_path():
     if getattr(sys, 'frozen', False):
         return sys._MEIPASS
     return os.path.dirname(__file__)
 
+
+def get_db_path():
+    configured_db_path = os.environ.get('BHAJANS_DB_PATH')
+    if configured_db_path and configured_db_path.strip():
+        return os.path.abspath(os.path.expanduser(configured_db_path.strip()))
+    return os.path.join(get_base_path(), "bhajans.db")
+
+
 BASE_PATH = get_base_path()
-DB_PATH = os.path.join(BASE_PATH, "bhajans.db")
+DB_PATH = get_db_path()
 STATIC_PATH = os.path.join(BASE_PATH, 'assets')
 
 # Flask app should use the absolute static folder so bundled apps find assets
@@ -47,6 +59,119 @@ def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+def clean_xml_text(value):
+    text = str(value or '')
+    return re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F]', '', text)
+
+def xlsx_cell(value, is_number=False):
+    if is_number:
+        return f'<c><v>{int(value)}</v></c>'
+    text = xml_escape(clean_xml_text(value), {'"': '&quot;', "'": '&apos;'})
+    return f'<c t="inlineStr"><is><t xml:space="preserve">{text}</t></is></c>'
+
+def create_songs_xlsx(rows):
+    headers = ('ID', 'Title', 'Deity', 'Tags', 'Lyrics')
+    row_xml = ['<row r="1">' + ''.join(xlsx_cell(value) for value in headers) + '</row>']
+    for row_number, row in enumerate(rows, start=2):
+        values = (
+            xlsx_cell(row['id'], is_number=True),
+            xlsx_cell(row['title']),
+            xlsx_cell(row['deity']),
+            xlsx_cell(row['tags']),
+            xlsx_cell(row['lyrics']),
+        )
+        row_xml.append(f'<row r="{row_number}">' + ''.join(values) + '</row>')
+
+    worksheet = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        '<sheetData>' + ''.join(row_xml) + '</sheetData></worksheet>'
+    )
+    workbook = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        '<sheets><sheet name="Bhajans" sheetId="1" r:id="rId1"/></sheets></workbook>'
+    )
+    content_types = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+        '<Default Extension="xml" ContentType="application/xml"/>'
+        '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+        '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+        '</Types>'
+    )
+    package_rels = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+        '</Relationships>'
+    )
+    workbook_rels = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+        '</Relationships>'
+    )
+    output = BytesIO()
+    with ZipFile(output, 'w', ZIP_DEFLATED) as archive:
+        archive.writestr('[Content_Types].xml', content_types)
+        archive.writestr('_rels/.rels', package_rels)
+        archive.writestr('xl/workbook.xml', workbook)
+        archive.writestr('xl/_rels/workbook.xml.rels', workbook_rels)
+        archive.writestr('xl/worksheets/sheet1.xml', worksheet)
+    output.seek(0)
+    return output
+
+def parse_xlsx_rows(file_bytes):
+    with ZipFile(BytesIO(file_bytes)) as archive:
+        shared_strings = []
+        if 'xl/sharedStrings.xml' in archive.namelist():
+            root = ET.fromstring(archive.read('xl/sharedStrings.xml'))
+            namespace = {'x': 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
+            for item in root.findall('x:si', namespace):
+                shared_strings.append(''.join(item.itertext()))
+        sheet_name = 'xl/worksheets/sheet1.xml'
+        if sheet_name not in archive.namelist():
+            raise ValueError('The workbook does not contain a first worksheet')
+        root = ET.fromstring(archive.read(sheet_name))
+        namespace = {'x': 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
+        rows = []
+        for row in root.findall('.//x:sheetData/x:row', namespace):
+            values = []
+            for cell in row.findall('x:c', namespace):
+                reference = cell.get('r', '')
+                column = re.match(r'([A-Z]+)', reference)
+                if column:
+                    column_index = 0
+                    for letter in column.group(1):
+                        column_index = column_index * 26 + ord(letter) - ord('A') + 1
+                    while len(values) < column_index - 1:
+                        values.append('')
+                value = cell.find('x:v', namespace)
+                inline = cell.find('x:is', namespace)
+                if inline is not None:
+                    text = ''.join(inline.itertext())
+                elif value is not None:
+                    text = value.text or ''
+                    if cell.get('t') == 's' and text.isdigit():
+                        text = shared_strings[int(text)]
+                else:
+                    text = ''
+                if column:
+                    while len(values) < column_index:
+                        values.append('')
+                    values[column_index - 1] = text
+                else:
+                    values.append(text)
+            rows.append(values)
+        return rows
+
+def normalize_header(value):
+    return re.sub(r'[^a-z0-9]', '', str(value or '').lower())
 
 def build_index():
     global _vectorizer, _matrix, _ids
@@ -86,6 +211,66 @@ def build_index():
 @app.route('/')
 def index():
     return send_from_directory(BASE_PATH, 'sai-bhajans.html')
+
+@app.route('/songs')
+def songs():
+    query = request.args.get('q', '').strip()
+    conn = get_db_connection()
+    cur = conn.cursor()
+    if query:
+        pattern = f'%{query}%'
+        cur.execute(
+            'SELECT id, title, deity, tags FROM songs '
+            'WHERE title LIKE ? OR deity LIKE ? OR tags LIKE ? ORDER BY id',
+            (pattern, pattern, pattern)
+        )
+    else:
+        cur.execute('SELECT id, title, deity, tags FROM songs ORDER BY id')
+    result = [dict(row) for row in cur.fetchall()]
+    conn.close()
+    return jsonify({'songs': result})
+
+@app.route('/samithi-map', methods=['POST'])
+def upload_samithi_map():
+    uploaded = request.files.get('file')
+    if not uploaded:
+        return jsonify({'error': 'Excel file is required'}), 400
+    try:
+        rows = parse_xlsx_rows(uploaded.read())
+    except Exception as error:
+        return jsonify({'error': f'Unable to read Excel file: {error}'}), 400
+    if not rows:
+        return jsonify({'error': 'The Excel file is empty'}), 400
+    headers = [normalize_header(value) for value in rows[0]]
+    first_line_index = next((i for i, value in enumerate(headers) if value in ('firstline', 'songfirstline', 'lyricsfirstline')), None)
+    samithi_index = next((i for i, value in enumerate(headers) if value in ('samithi', 'samithiname', 'center', 'centre')), None)
+    id_index = next((i for i, value in enumerate(headers) if value in ('id', 'songid', 'bhajanid')), None)
+    if first_line_index is None or samithi_index is None:
+        return jsonify({'error': 'Excel must contain First Line and Samithi Name columns'}), 400
+    mappings = []
+    for row in rows[1:]:
+        get_value = lambda index: str(row[index]).strip() if index is not None and index < len(row) else ''
+        first_line = get_value(first_line_index)
+        samithi = get_value(samithi_index)
+        song_id = get_value(id_index)
+        if first_line and samithi:
+            mappings.append({'id': song_id, 'firstLine': first_line, 'samithi': samithi})
+    return jsonify({'mappings': mappings, 'count': len(mappings)})
+
+@app.route('/songs.xlsx')
+def export_songs_xlsx():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('SELECT id, title, deity, tags, lyrics FROM songs ORDER BY id')
+    rows = cur.fetchall()
+    conn.close()
+    workbook = create_songs_xlsx(rows)
+    return send_file(
+        workbook,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='bhajans.xlsx'
+    )
 
 @app.route('/search')
 def search():
@@ -300,6 +485,7 @@ def images_manifest():
     return jsonify(result)
 
 if __name__ == '__main__':
+    print(f"Using database: {DB_PATH}", flush=True)
     print("Starting Sri Sathya Sai Bhajans server on http://127.0.0.1:8000", flush=True)
     # Build the search index in the background so packaged macOS builds start listening promptly.
     if os.path.exists(DB_PATH):

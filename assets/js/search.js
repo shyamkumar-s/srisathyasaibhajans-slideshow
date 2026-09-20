@@ -41,7 +41,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
       titleDiv.style.justifyContent = 'space-between'
 
       const left = document.createElement('div')
-      left.innerHTML = `<strong>${r.title}</strong><div class="meta">${r.deity || ''} ${r.tags? ' · '+r.tags:''} · score:${(r.score||0).toFixed(3)}</div>`
+      const songId = ` <span class="song-id">ID: ${r.id}</span>`
+      left.innerHTML = `<strong>${r.title}</strong>${songId}<div class="meta">${r.deity || ''} ${r.tags? ' · '+r.tags:''} · score:${(r.score||0).toFixed(3)}</div>`
       left.style.cursor = 'pointer'
       left.onclick = ()=> addToTodaysList(r)
 
@@ -141,6 +142,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
       const line = r.title + (r.deity? ' · '+r.deity : '')
       if(textarea.value.trim().length > 0 && !textarea.value.endsWith('\n')) textarea.value += '\n'
       textarea.value += line + '\n'
+      _matchedSongs[line] = r
       // update preview if existing function available
       if(typeof previewMatches === 'function') previewMatches()
       alert('Added to today\'s list: ' + r.title)

@@ -47,6 +47,22 @@ Adding new lyrics via the UI or API
 - The frontend provides an "Add new" flow when searches return no results. It submits to `POST /song` with JSON `{ "title": str, "deity": str, "tags": str, "lyrics": str }` and returns `{ "id": int, "status": "created" }`.
 - The server triggers a background reindex after creating a song.
 
+Samithi Excel mapping
+- Use an `.xlsx` file with the mapping in the first worksheet.
+- The first row must contain `First Line` and `Samithi Name` columns.
+- `Song ID` is optional. When supplied, the ID is used for an exact match; otherwise the song is matched using its normalized first lyric line.
+- Each subsequent row should contain one song mapping. A blank `Song ID` is allowed.
+- Column capitalization and spaces are flexible, so `Song ID`, `song_id`, and `SongId` are accepted.
+
+Example:
+
+| First Line | Song ID | Samithi Name |
+| --- | --- | --- |
+| Jai Jai Sai Ram | 2514 | Prasanthi Samithi |
+| Om Namah Shivaya |  | Sai Center Samithi |
+
+In the app, enable **Show Samithi and next song**, then choose **Upload Samithi Excel**. The presentation can show the current song's Samithi and the next song's first line and Samithi.
+
 Autocomplete
 - The search box supports autocomplete suggestions fetched from `GET /autocomplete?q=...&limit=...`. Suggestions are title + deity scored by RapidFuzz.
 

@@ -274,6 +274,20 @@
   .result > div { display:flex; align-items:center; justify-content:space-between; gap:12px }
   .result .meta { color: rgba(11,23,32,0.6); font-size:0.95rem; margin-top:4px }
   .result button { white-space: nowrap; }
+  .song-id { color: var(--pink-deep); font-size: 0.82rem; margin-left: 8px; white-space: nowrap; }
+
+  /* Bhajan library table */
+  #library-screen { display: none; min-height: 100vh; padding: 20px; }
+  .library-card { width: 100%; max-width: 1180px; margin: 0 auto; background: var(--card-bg); border: 1px solid rgba(255,116,177,0.16); border-radius: 16px; padding: 28px; box-shadow: 0 6px 24px rgba(11,23,32,0.06); }
+  .library-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .library-toolbar input { flex: 1 1 260px; min-width: 180px; padding: 10px 12px; border: 1px solid rgba(255,116,177,0.18); border-radius: 8px; font: inherit; }
+  .library-table-wrap { max-height: 62vh; overflow: auto; border: 1px solid rgba(255,116,177,0.14); border-radius: 8px; background: #fff; }
+  .library-table { width: 100%; border-collapse: collapse; text-align: left; }
+  .library-table th, .library-table td { padding: 9px 10px; border-bottom: 1px solid rgba(255,116,177,0.10); vertical-align: top; }
+  .library-table th { position: sticky; top: 0; background: #fff7fb; color: var(--pink-deep); font-family: 'Cinzel Decorative', serif; font-size: 0.72rem; z-index: 1; }
+  .library-table td:first-child, .library-table th:first-child { width: 42px; text-align: center; }
+  .library-table td:nth-child(2), .library-table th:nth-child(2) { width: 76px; color: var(--blue-deep); font-weight: 600; }
+  .library-status { color: rgba(11,23,32,0.58); font-size: 0.9rem; margin-bottom: 10px; }
 
   /* Start button */
   .start-btn {
@@ -483,6 +497,108 @@
     position: relative;
   }
 
+  #slide-sequence {
+    color: #ffffff;
+    font-family: 'Times New Roman', Times, serif;
+    font-size: clamp(2.8rem, 5.5vw, 5.2rem);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: clamp(90px, 10vw, 140px);
+    height: clamp(90px, 10vw, 140px);
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #f7bfd4 0%, #ff74b1 28%, #b73572 100%);
+    box-shadow: 0 8px 18px rgba(183, 53, 114, 0.26);
+    border: 3px solid rgba(255,255,255,0.6);
+    position: absolute;
+    top: clamp(14px, 2vw, 28px);
+    right: clamp(18px, 3vw, 48px);
+    z-index: 2;
+  }
+
+  #slide-samithi, #slide-next-song, #slide-notice {
+    color: var(--pink-deep);
+    font-size: clamp(0.85rem, 1.8vw, 1.15rem);
+    margin-bottom: 10px;
+  }
+
+  #slide-samithi {
+    display: inline-block;
+    width: fit-content;
+    max-width: 100%;
+    padding: 8px 16px;
+    border: 2px solid rgba(183,55,114,0.36);
+    border-radius: 8px;
+    background: rgba(255,116,177,0.14);
+    box-shadow: 0 4px 14px rgba(183,55,114,0.10);
+    font-family: 'Cinzel Decorative', serif;
+    font-size: clamp(1.1rem, 2.3vw, 1.7rem);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  #slide-next-song {
+    position: absolute;
+    right: clamp(18px, 3vw, 48px);
+    bottom: clamp(18px, 3vw, 42px);
+    max-width: min(48%, 520px);
+    margin: 0;
+    padding: 14px 18px;
+    border-right: 4px solid var(--blue);
+    border-radius: 8px;
+    background: rgba(166,234,255,0.22);
+    color: var(--blue-deep);
+    font-size: clamp(2.2rem, 4.4vw, 3.2rem);
+    font-weight: 600;
+    line-height: 1.3;
+    text-align: right;
+  }
+
+  #slide-notice {
+    position: absolute;
+    right: clamp(18px, 3vw, 48px);
+    bottom: clamp(84px, 9vw, 112px);
+    max-width: min(48%, 520px);
+    margin: 0;
+    padding: 9px 14px;
+    border-right: 4px solid var(--yellow);
+    border-radius: 8px;
+    background: rgba(255,235,118,0.28);
+    color: var(--yellow-deep);
+    font-family: 'Cinzel Decorative', serif;
+    font-size: clamp(2.2rem, 4.4vw, 3.2rem);
+    font-weight: 600;
+    line-height: 1.3;
+    text-align: right;
+  }
+
+  #slide-lyrics-panel.interstitial {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  #slide-lyrics-panel.interstitial #slide-song-title {
+    border-bottom: 0;
+    color: var(--pink-deep);
+    font-size: clamp(1.4rem, 3.5vw, 2.6rem);
+  }
+
+  #slide-lyrics-panel.interstitial #slide-song-title::after {
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  #slide-lyrics-panel.interstitial #slide-lyrics {
+    flex: 0;
+    font-family: 'Cinzel Decorative', serif;
+    font-size: clamp(1.2rem, 2.6vw, 2rem);
+    color: var(--blue-deep);
+  }
+
   /* Coloured underline accent */
   #slide-song-title::after {
     content: '';
@@ -501,7 +617,7 @@
     color: var(--text-primary);
     white-space: pre-wrap;
     flex: 1;
-    margin-bottom: 0;
+    margin-bottom: clamp(84px, 10vw, 124px);
     text-shadow: 0 1px 0 rgba(255,255,255,0.72);
   }
 
@@ -596,6 +712,9 @@
 
   @media (max-width: 700px) {
     #slide-image-panel { width: 38%; }
+    #slide-next-song { right: 14px; bottom: 14px; max-width: 78%; font-size: 1rem; }
+    #slide-notice { right: 14px; bottom: 72px; max-width: 78%; font-size: 0.82rem; }
+    #slide-samithi { font-size: 1rem; }
     .nav-btn { min-width: 90px; padding: 10px 14px; font-size: 0.62rem; }
     .setup-card { padding: 24px 18px; }
   }
@@ -623,6 +742,7 @@
       </select>
       <button id="search" class="folder-btn" style="padding:10px 14px">Search</button>
       <button id="add-manual" class="folder-btn" style="padding:10px 14px">Add Manually</button>
+      <button class="folder-btn" style="padding:10px 14px" onclick="openSongLibrary()">Bhajan Table</button>
     </div>
     <div id="search-results" style="margin-bottom:12px"></div>
 
@@ -642,6 +762,14 @@
 
     <!-- Step 2 -->
     <div class="section-label">② Enter Today's Bhajan List</div>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+      <label style="display:flex;align-items:center;gap:5px;font-size:0.9rem"><input id="show-samithi-info" type="checkbox" onchange="if (document.getElementById('presentation-screen').style.display === 'flex') renderSlide(currentSlide)" /> Show Samithi and next song</label>
+      <label style="display:flex;align-items:center;gap:5px;font-size:0.9rem"><input id="insert-golden-voice" type="checkbox" /> Insert Golden Voice slide every 10 songs</label>
+      <label class="folder-btn" style="padding:7px 10px;cursor:pointer">Upload Samithi Excel
+        <input id="samithi-file" type="file" accept=".xlsx" style="display:none" onchange="uploadSamithiMap(this.files[0])" />
+      </label>
+      <span id="samithi-status" class="hint" style="margin-top:0"></span>
+    </div>
     <textarea id="song-list-input"
       placeholder="Type the first few words of each bhajan, one per line:&#10;&#10;Jai Jai Sai Ram&#10;Om Namah Shivaya&#10;Govinda Govinda&#10;..."
       oninput="previewMatches()"></textarea>
@@ -655,6 +783,25 @@
   </div>
 </div>
 
+<div id="library-screen">
+  <div class="library-card">
+    <div class="section-label">Bhajan Library</div>
+    <div class="library-toolbar">
+      <input id="library-filter" type="search" placeholder="Filter by song ID, title, deity, or tags" oninput="renderSongLibrary()" />
+      <button class="folder-btn" onclick="addSelectedSongsToSession()">Add Selected to Session</button>
+      <a class="folder-btn" href="/songs.xlsx" download>Download Excel</a>
+      <button class="folder-btn btn-secondary" onclick="closeSongLibrary()">Back to Session</button>
+    </div>
+    <div id="library-status" class="library-status"></div>
+    <div class="library-table-wrap">
+      <table class="library-table">
+        <thead><tr><th><input id="library-select-all" type="checkbox" onchange="toggleAllLibrarySongs(this.checked)" /></th><th>ID</th><th>Title</th><th>Deity</th><th>Tags</th></tr></thead>
+        <tbody id="library-rows"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 
 <!-- ════════════════════════════════════
      PRESENTATION SCREEN
@@ -665,8 +812,7 @@
     <div id="pres-title-bar">Sai Bhajans</div>
     <div id="slide-counter">1 / 1</div>
     <button class="topbar-btn" onclick="toggleFullscreen()">⛶ Fullscreen</button>
-    <!-- Export PDF (disabled due to blank-PDF issue) -->
-    <!-- <button class="topbar-btn" onclick="exportSlidepackPDF()">Export PDF</button> -->
+    <button class="topbar-btn" id="export-pdf-btn" onclick="exportSlidepackPDF()">Export PDF</button>
     <button class="topbar-btn" onclick="exitPresentation()">✕ Exit</button>
   </div>
 
@@ -688,7 +834,11 @@
         <circle cx="55" cy="5"  r="3" fill="#a6eaff"/>
       </svg>
 
+      <div id="slide-sequence"></div>
+      <div id="slide-notice"></div>
       <div id="slide-song-title"></div>
+      <div id="slide-samithi"></div>
+      <div id="slide-next-song"></div>
       <div id="slide-lyrics"></div>
 
       <svg class="corner-ornament br" viewBox="0 0 60 60" fill="none">
@@ -727,7 +877,120 @@
 // ═══════════════════════════════════════════
 let library = {};
 let session = [];
+let totalSongs = 0;
+let totalSlides = 0;
 let currentSlide = 0;
+let librarySongs = [];
+const selectedLibrarySongIds = new Set();
+const samithiById = new Map();
+const samithiByFirstLine = new Map();
+
+function normalizeFirstLine(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+async function uploadSamithiMap(file) {
+  if (!file) return;
+  const form = new FormData();
+  form.append('file', file);
+  const response = await fetch('/samithi-map', { method: 'POST', body: form });
+  const data = await response.json();
+  const status = document.getElementById('samithi-status');
+  if (!response.ok) {
+    status.textContent = data.error || 'Unable to read Samithi Excel.';
+    return;
+  }
+  samithiById.clear();
+  samithiByFirstLine.clear();
+  data.mappings.forEach(mapping => {
+    if (mapping.id) samithiById.set(String(mapping.id), mapping.samithi);
+    samithiByFirstLine.set(normalizeFirstLine(mapping.firstLine), mapping.samithi);
+  });
+  const sessionLines = data.mappings.map(mapping =>
+    mapping.id ? `ID: ${mapping.id}` : mapping.firstLine
+  );
+  document.getElementById('song-list-input').value = sessionLines.join('\n');
+  status.textContent = `Loaded ${data.count} Samithi mappings and populated the session`;
+  previewMatches();
+}
+
+function filteredLibrarySongs() {
+  const query = (document.getElementById('library-filter')?.value || '').trim().toLowerCase();
+  if (!query) return librarySongs;
+  return librarySongs.filter(song => [song.id, song.title, song.deity, song.tags]
+    .some(value => String(value || '').toLowerCase().includes(query)));
+}
+
+function renderSongLibrary() {
+  const visibleSongs = filteredLibrarySongs();
+  const rowsEl = document.getElementById('library-rows');
+  const statusEl = document.getElementById('library-status');
+  if (!rowsEl || !statusEl) return;
+  rowsEl.innerHTML = visibleSongs.map(song => `
+    <tr>
+      <td><input type="checkbox" data-song-id="${song.id}" ${selectedLibrarySongIds.has(String(song.id)) ? 'checked' : ''} onchange="toggleLibrarySong(this)" /></td>
+      <td>${escapeHtml(song.id)}</td>
+      <td>${escapeHtml(song.title)}</td>
+      <td>${escapeHtml(song.deity)}</td>
+      <td>${escapeHtml(song.tags)}</td>
+    </tr>`).join('') || '<tr><td colspan="5">No bhajans match this filter.</td></tr>';
+  statusEl.textContent = `${visibleSongs.length} shown of ${librarySongs.length} · ${selectedLibrarySongIds.size} selected`;
+  const selectAll = document.getElementById('library-select-all');
+  if (selectAll) selectAll.checked = visibleSongs.length > 0 && visibleSongs.every(song => selectedLibrarySongIds.has(String(song.id)));
+}
+
+function toggleLibrarySong(checkbox) {
+  const id = String(checkbox.dataset.songId);
+  if (checkbox.checked) selectedLibrarySongIds.add(id);
+  else selectedLibrarySongIds.delete(id);
+  renderSongLibrary();
+}
+
+function toggleAllLibrarySongs(checked) {
+  filteredLibrarySongs().forEach(song => {
+    const id = String(song.id);
+    if (checked) selectedLibrarySongIds.add(id);
+    else selectedLibrarySongIds.delete(id);
+  });
+  renderSongLibrary();
+}
+
+async function openSongLibrary() {
+  const response = await fetch('/songs');
+  if (!response.ok) {
+    alert('Unable to load the bhajan library.');
+    return;
+  }
+  const data = await response.json();
+  librarySongs = data.songs || [];
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('library-screen').style.display = 'block';
+  renderSongLibrary();
+}
+
+function closeSongLibrary() {
+  document.getElementById('library-screen').style.display = 'none';
+  document.getElementById('setup-screen').style.display = 'flex';
+}
+
+function addSelectedSongsToSession() {
+  const textarea = document.getElementById('song-list-input');
+  if (!selectedLibrarySongIds.size) {
+    alert('Select at least one bhajan.');
+    return;
+  }
+  const existing = new Set(textarea.value.split('\n').map(line => line.trim()).filter(Boolean));
+  const selectedLines = librarySongs
+    .filter(song => selectedLibrarySongIds.has(String(song.id)))
+    .map(song => `ID: ${song.id}`)
+    .filter(line => !existing.has(line));
+  if (selectedLines.length) {
+    const prefix = textarea.value.trim() ? `${textarea.value.trim()}\n` : '';
+    textarea.value = prefix + selectedLines.join('\n') + '\n';
+  }
+  closeSongLibrary();
+  previewMatches();
+}
 
 
 // ═══════════════════════════════════════════
@@ -1084,10 +1347,20 @@ async function previewMatches() {
   // For each line, search and fetch full song so we can show a snippet in preview
   const promises = lines.map(async (line) => {
     try {
-      const resp = await fetch(`/search?q=${encodeURIComponent(line)}&limit=1&mode=combined`);
-      const data = await resp.json();
-      if (data.results && data.results.length > 0 && data.results[0].score > 0.05) {
-        const match = data.results[0];
+      let match = _matchedSongs[line];
+      const idMatch = line.match(/^(?:song\s*)?(?:id\s*[:#]?\s*)?(\d+)$/i);
+      if (idMatch) {
+        const response = await fetch(`/song/${idMatch[1]}`);
+        match = response.ok ? await response.json() : null;
+      }
+      if (!idMatch && !match) {
+        const resp = await fetch(`/search?q=${encodeURIComponent(line)}&limit=1&mode=combined`);
+        const data = await resp.json();
+        if (data.results && data.results.length > 0 && data.results[0].score > 0.05) {
+          match = data.results[0];
+        }
+      }
+      if (match) {
         // try to fetch full lyrics for a snippet
         try {
           const sresp = await fetch(`/song/${match.id}`);
@@ -1123,6 +1396,7 @@ async function previewMatches() {
           <div style="display:flex;align-items:center;gap:8px;">
             <span style="font-weight:600">${escapeHtml(r.match.title)}</span>
             <span class="match-deity">${escapeHtml(r.match.deity)}</span>
+            <span class="song-id">ID: ${escapeHtml(r.match.id)}</span>
           </div>
           ${r.snippet ? `<div style="font-size:0.9rem;color:rgba(11,23,32,0.72);">${escapeHtml(r.snippet)}</div>` : ''}
         </div>
@@ -1180,6 +1454,56 @@ async function buildSession() {
     } catch (e) { imageFile = null; }
     session.push({ id: match.id, title: match.title, deity: match.deity, tags: match.tags, lyrics: lyrics, imageFile });
   }
+
+  const songs = session;
+  totalSongs = songs.length;
+  songs.forEach((song, index) => {
+    song.firstLine = getLyricsOnly(song.lyrics).split(/\n/).map(line => line.trim()).find(Boolean) || '';
+    song.samithi = samithiById.get(String(song.id)) || samithiByFirstLine.get(normalizeFirstLine(song.firstLine)) || '';
+  });
+  songs.forEach((song, index) => {
+    const nextSong = songs[index + 1];
+    song.nextFirstLine = nextSong ? nextSong.firstLine : '';
+    song.nextSamithi = nextSong ? nextSong.samithi : '';
+  });
+  session = [];
+  let presentationNumber = 0;
+  songs.forEach((song, index) => {
+    if (document.getElementById('insert-golden-voice')?.checked && (presentationNumber + 1) % 10 === 0) {
+      const previousSong = session[session.length - 1];
+      if (previousSong && previousSong.type !== 'interstitial') previousSong.goldenVoiceNotice = true;
+      presentationNumber += 1;
+      session.push({
+        type: 'interstitial',
+        sequenceNumber: presentationNumber,
+        title: "Bhajan in Swami's Golden Voice",
+        deity: '',
+        lyrics: '',
+        imageFile: null,
+        nextFirstLine: song.firstLine,
+        nextSamithi: song.samithi
+      });
+    }
+    presentationNumber += 1;
+    song.sequenceNumber = presentationNumber;
+    session.push(song);
+  });
+  if (songs.length > 0 && document.getElementById('insert-golden-voice')?.checked && (presentationNumber + 1) % 10 === 0) {
+    const previousSong = session[session.length - 1];
+    if (previousSong && previousSong.type !== 'interstitial') previousSong.goldenVoiceNotice = true;
+    presentationNumber += 1;
+    session.push({
+      type: 'interstitial',
+      sequenceNumber: presentationNumber,
+      title: "Bhajan in Swami's Golden Voice",
+      deity: '',
+      lyrics: '',
+      imageFile: null,
+      nextFirstLine: '',
+      nextSamithi: ''
+    });
+  }
+  totalSlides = session.length;
 }
 
 // If library has no images merged yet, fetch images manifest and merge now.
@@ -1232,12 +1556,30 @@ function exitPresentation() {
 function renderSlide(index) {
   const slide = session[index];
   if (!slide) return;
+  const isInterstitial = slide.type === 'interstitial';
 
   document.getElementById('pres-title-bar').textContent = slide.title;
-  document.getElementById('slide-counter').textContent  = `${index + 1} / ${session.length}`;
+  document.getElementById('slide-counter').textContent  = `${slide.sequenceNumber} / ${totalSlides}`;
 
   const lyricsEl = document.getElementById('slide-lyrics');
   const titleEl  = document.getElementById('slide-song-title');
+  const sequenceEl = document.getElementById('slide-sequence');
+  const noticeEl = document.getElementById('slide-notice');
+  const samithiEl = document.getElementById('slide-samithi');
+  const nextSongEl = document.getElementById('slide-next-song');
+  const lyricsPanel = document.getElementById('slide-lyrics-panel');
+
+  sequenceEl.textContent = `${slide.sequenceNumber}`;
+  const showSamithi = document.getElementById('show-samithi-info')?.checked;
+  noticeEl.textContent = !isInterstitial && slide.goldenVoiceNotice
+    ? `Swami's song next · Bhajan ${slide.sequenceNumber + 1}`
+    : '';
+  samithiEl.textContent = showSamithi && slide.samithi ? `Samithi: ${slide.samithi}` : '';
+  const nextLabel = !slide.goldenVoiceNotice && slide.nextFirstLine
+    ? `Next: ${slide.nextFirstLine}${showSamithi && slide.nextSamithi ? ` · ${slide.nextSamithi}` : ''}`
+    : '';
+  nextSongEl.textContent = showSamithi ? nextLabel : '';
+  lyricsPanel.classList.toggle('interstitial', isInterstitial);
 
   titleEl.style.animation  = 'none';
   lyricsEl.style.animation = 'none';
@@ -1247,7 +1589,7 @@ function renderSlide(index) {
   });
 
   titleEl.textContent  = slide.title;
-  lyricsEl.textContent = getLyricsOnly(slide.lyrics);
+  lyricsEl.textContent = isInterstitial ? '' : getLyricsOnly(slide.lyrics);
 
   const imgPanel    = document.getElementById('slide-image-panel');
   const imgEl       = document.getElementById('slide-deity-img');
@@ -1362,47 +1704,151 @@ function toggleFullscreen() {
 }
 
 async function exportSlidepackPDF(){
-  // PDF export temporarily disabled because it produced blank PDFs for some slides.
-  // The original implementation is preserved in source control; re-enable after fixing capture issues.
-  alert('PDF export is temporarily disabled (known issue).');
-  return;
+  const button = document.getElementById('export-pdf-btn');
+  if (button) { button.disabled = true; button.textContent = 'Exporting PDF...'; }
+  try {
+    if (!session.length) {
+      await previewMatches();
+      await buildSession();
+    }
+    if (!session.length) throw new Error('Add at least one matched bhajan before exporting.');
+
+    const jsPDF = await ensureJsPDF();
+    if (document.fonts?.ready) await document.fonts.ready;
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4', compress: true });
+    pdf.setProperties({ title: 'Sri Sathya Sai Bhajans Session', subject: 'Bhajan session slide pack', creator: 'Sri Sathya Sai Bhajans' });
+
+    for (let index = 0; index < session.length; index++) {
+      if (index > 0) pdf.addPage();
+      const image = await createExportSlideImage(session[index], index, session.length);
+      pdf.addImage(image, 'JPEG', 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight(), undefined, 'FAST');
+    }
+    pdf.save(`Sai-Bhajans-Session-${new Date().toISOString().slice(0, 10)}.pdf`);
+  } catch (error) {
+    console.error('PDF export failed:', error);
+    alert(`Could not export PDF: ${error.message || 'unknown error'}`);
+  } finally {
+    if (button) { button.disabled = false; button.textContent = 'Export PDF'; }
+  }
+}
+
+async function ensureJsPDF() {
+  if (window.jspdf?.jsPDF) return window.jspdf.jsPDF;
+  if (!window.__saiJsPdfLoadPromise) {
+    window.__saiJsPdfLoadPromise = (async () => {
+      for (const source of ['/assets/vendor/jspdf.umd.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js']) {
+        try {
+          if (source.startsWith('/')) {
+            const response = await fetch(source, { method: 'HEAD' });
+            if (!response.ok) continue;
+          }
+          await loadExportScript(source);
+          if (window.jspdf?.jsPDF) return window.jspdf.jsPDF;
+        } catch (error) { console.warn('Could not load jsPDF from', source, error); }
+      }
+      throw new Error('PDF library could not be loaded. Check the internet connection or add jsPDF to assets/vendor.');
+    })();
+  }
+  return window.__saiJsPdfLoadPromise;
+}
+
+function loadExportScript(source) {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = source;
+    script.onload = resolve;
+    script.onerror = () => reject(new Error(`Failed to load ${source}`));
+    document.head.appendChild(script);
+  });
+}
+
+function wrapExportText(context, text, maxWidth) {
+  const lines = [];
+  for (const paragraph of String(text || '').split(/\r?\n/)) {
+    let line = '';
+    for (const word of paragraph.split(/\s+/).filter(Boolean)) {
+      const candidate = line ? `${line} ${word}` : word;
+      if (context.measureText(candidate).width > maxWidth && line) {
+        lines.push(line);
+        line = word;
+      } else line = candidate;
+    }
+    lines.push(line);
+  }
+  return lines.length ? lines : [''];
+}
+
+function loadExportImage(source) {
+  return new Promise(resolve => {
+    if (!source) return resolve(null);
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => resolve(null);
+    image.src = typeof source === 'string' ? source : URL.createObjectURL(source);
+  });
+}
+
+async function createExportSlideImage(slide, index, slideCount) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1600;
+  canvas.height = 900;
+  const context = canvas.getContext('2d');
+  const isInterstitial = slide.type === 'interstitial';
+  const imageWidth = 530;
+  const image = await loadExportImage(slide.imageFile);
+
+  context.fillStyle = '#fffdf6';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  if (image) {
+    const scale = Math.max(imageWidth / image.width, canvas.height / image.height);
+    const width = image.width * scale;
+    const height = image.height * scale;
+    context.drawImage(image, (imageWidth - width) / 2, (canvas.height - height) / 2, width, height);
+  } else {
+    context.fillStyle = '#fff1f7';
+    context.fillRect(0, 0, imageWidth, canvas.height);
+  }
+  context.fillStyle = '#2e2430';
+  context.fillRect(imageWidth, 0, canvas.width - imageWidth, canvas.height);
+  context.fillStyle = '#ffffff';
+  context.fillRect(imageWidth + 3, 3, canvas.width - imageWidth - 3, canvas.height - 6);
+
+  const x = imageWidth + 48;
+  const maxWidth = canvas.width - x - 48;
+  context.textAlign = isInterstitial ? 'center' : 'left';
+  const centerX = imageWidth + (canvas.width - imageWidth) / 2;
+  context.fillStyle = '#b73572';
+  context.font = '700 30px Georgia';
+  context.fillText(`Bhajan ${slide.sequenceNumber}  |  ${index + 1} / ${slideCount}`, isInterstitial ? centerX : x, 62);
+  context.fillStyle = isInterstitial ? '#b73572' : '#19749a';
+  context.font = `700 ${isInterstitial ? 44 : 34}px Georgia`;
+  const titleLines = wrapExportText(context, slide.title, maxWidth);
+  titleLines.slice(0, 3).forEach((line, lineIndex) => context.fillText(line, isInterstitial ? centerX : x, 120 + lineIndex * 48));
+
+  if (isInterstitial) {
+    context.fillStyle = '#19749a';
+    context.font = '600 28px Georgia';
+    const next = slide.nextFirstLine ? `Next: ${slide.nextFirstLine}${slide.nextSamithi ? ` · ${slide.nextSamithi}` : ''}` : '';
+    context.fillText(next, centerX, 300);
+  } else {
+    context.fillStyle = '#b73572';
+    context.font = '700 25px Georgia';
+    if (slide.samithi) context.fillText(`Samithi: ${slide.samithi}`, x, 220);
+    if (slide.goldenVoiceNotice) context.fillText(`Swami's song next · Bhajan ${slide.sequenceNumber + 1}`, x, 265);
+    context.fillStyle = '#2e2430';
+    context.font = '32px Georgia';
+    const lyricLines = wrapExportText(context, getLyricsOnly(slide.lyrics), maxWidth);
+    lyricLines.slice(0, 19).forEach((line, lineIndex) => context.fillText(line, x, 320 + lineIndex * 34));
+    if (slide.nextFirstLine && !slide.goldenVoiceNotice) {
+      context.fillStyle = '#19749a';
+      context.font = '600 22px Georgia';
+      context.fillText(`Next: ${slide.nextFirstLine}${slide.nextSamithi ? ` · ${slide.nextSamithi}` : ''}`, x, 840);
+    }
+  }
+  return canvas.toDataURL('image/jpeg', 0.92);
 }
 
 initLibraryLoad();
-</script>
-<script>
-  // Load PDF export libraries: prefer local files under /assets/vendor/ for offline use,
-  // fall back to CDN if local not present.
-  (function(){
-    const libs = [
-      { local: '/assets/vendor/html2canvas.min.js', cdn: 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', check: () => !!window.html2canvas },
-      { local: '/assets/vendor/jspdf.umd.min.js', cdn: 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', check: () => !!window.jspdf }
-    ];
-
-    function loadScript(src){
-      return new Promise((resolve, reject)=>{
-        const s = document.createElement('script'); s.src = src; s.async = false;
-        s.onload = () => resolve(src); s.onerror = () => reject(src);
-        document.head.appendChild(s);
-      });
-    }
-
-    async function ensureLib(lib){
-      if(lib.check()) return;
-      try{
-        // try local first
-        const resp = await fetch(lib.local, { method: 'HEAD' });
-        if(resp.ok){ await loadScript(lib.local); return; }
-      }catch(e){ /* ignore */ }
-      // fallback to CDN
-      try{ await loadScript(lib.cdn); }catch(e){ console.warn('Failed to load', lib.cdn); }
-    }
-
-    // sequentially ensure libs to preserve order
-    (async ()=>{
-      for(const l of libs) await ensureLib(l);
-    })();
-  })();
 </script>
 <script src="assets/js/search.js"></script>
 </body>
