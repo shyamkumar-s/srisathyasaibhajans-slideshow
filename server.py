@@ -10,6 +10,8 @@ from rapidfuzz import fuzz
 import unicodedata
 import re
 from xml.sax.saxutils import escape as xml_escape
+import mimetypes
+import uuid
 
 def get_base_path():
     if getattr(sys, 'frozen', False):
@@ -39,6 +41,13 @@ _ids = []
 _titles = {}
 _deities = {}
 _index_lock = threading.Lock()
+_media_playlists = {}
+_media_playlist_lock = threading.Lock()
+
+MEDIA_EXTENSIONS = {
+    '.mp4', '.webm', '.ogg', '.ogv', '.mov', '.m4v', '.avi',
+    '.mp3', '.wav', '.m4a', '.aac', '.flac'
+}
 
 
 def normalize_text(s: str) -> str:
@@ -256,6 +265,57 @@ def upload_samithi_map():
         if first_line and samithi:
             mappings.append({'id': song_id, 'firstLine': first_line, 'samithi': samithi})
     return jsonify({'mappings': mappings, 'count': len(mappings)})
+
+@app.route('/media-playlist', methods=['POST'])
+def upload_media_playlist():
+    uploaded = request.files.get('file')
+    if not uploaded:
+        return jsonify({'error': 'Playlist text file is required'}), 400
+    try:
+        text = uploaded.read().decode('utf-8-sig')
+    except UnicodeDecodeError:
+        return jsonify({'error': 'Playlist must be a UTF-8 text file'}), 400
+
+    media_files = []
+    errors = []
+    for line_number, raw_line in enumerate(text.splitlines(), start=1):
+        path_text = raw_line.strip().strip('"')
+        if not path_text or path_text.startswith('#'):
+            continue
+        media_path = os.path.abspath(os.path.expanduser(path_text))
+        extension = os.path.splitext(media_path)[1].lower()
+        if extension not in MEDIA_EXTENSIONS:
+            errors.append(f'Line {line_number}: unsupported media type')
+            continue
+        if not os.path.isfile(media_path):
+            errors.append(f'Line {line_number}: file not found')
+            continue
+        media_files.append({
+            'path': media_path,
+            'name': os.path.basename(media_path),
+            'kind': 'video' if extension in {'.mp4', '.webm', '.ogv', '.mov', '.m4v', '.avi'} else 'audio',
+        })
+
+    if not media_files:
+        return jsonify({'error': 'No usable media paths were found', 'errors': errors}), 400
+
+    playlist_id = uuid.uuid4().hex
+    with _media_playlist_lock:
+        _media_playlists[playlist_id] = media_files
+    entries = [
+        {'name': item['name'], 'kind': item['kind'], 'url': f'/playlist-media/{playlist_id}/{index}'}
+        for index, item in enumerate(media_files)
+    ]
+    return jsonify({'entries': entries, 'count': len(entries), 'errors': errors})
+
+@app.route('/playlist-media/<playlist_id>/<int:index>')
+def serve_playlist_media(playlist_id, index):
+    with _media_playlist_lock:
+        playlist = _media_playlists.get(playlist_id)
+        item = playlist[index] if playlist and 0 <= index < len(playlist) else None
+    if not item:
+        return jsonify({'error': 'Media file not found'}), 404
+    return send_file(item['path'], mimetype=mimetypes.guess_type(item['path'])[0] or 'application/octet-stream')
 
 @app.route('/songs.xlsx')
 def export_songs_xlsx():

@@ -557,6 +557,27 @@
     text-align: right;
   }
 
+  #slide-next-song .next-song-samithi {
+    color: var(--pink-deep);
+  }
+
+  #slide-area.media-interstitial #slide-image-panel {
+    display: none;
+  }
+
+  #slide-area.media-interstitial #slide-next-song {
+    left: clamp(18px, 3vw, 48px);
+    right: clamp(18px, 3vw, 48px);
+    max-width: none;
+    border-right: 0;
+    border-top: 4px solid var(--blue);
+    text-align: center;
+  }
+
+  #slide-area.media-interstitial #slide-song-title {
+    display: none;
+  }
+
   #slide-notice {
     position: absolute;
     right: clamp(18px, 3vw, 48px);
@@ -597,6 +618,29 @@
     font-family: 'Cinzel Decorative', serif;
     font-size: clamp(1.2rem, 2.6vw, 2rem);
     color: var(--blue-deep);
+  }
+
+  #slide-media-frame {
+    display: none;
+    width: min(100%, 1200px);
+    margin: 4px auto 128px;
+    padding: 10px;
+    border: 1px solid rgba(183,55,114,0.28);
+    border-radius: 10px;
+    background: rgba(255,255,255,0.78);
+    box-shadow: 0 8px 24px rgba(46,36,48,0.12);
+    box-sizing: border-box;
+  }
+
+  #slide-media-frame.visible { display: block; }
+
+  #slide-media-frame video,
+  #slide-media-frame audio {
+    display: block;
+    width: 100%;
+    max-height: min(74vh, 760px);
+    border-radius: 6px;
+    background: #161218;
   }
 
   /* Coloured underline accent */
@@ -765,10 +809,14 @@
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px">
       <label style="display:flex;align-items:center;gap:5px;font-size:0.9rem"><input id="show-samithi-info" type="checkbox" onchange="if (document.getElementById('presentation-screen').style.display === 'flex') renderSlide(currentSlide)" /> Show Samithi and next song</label>
       <label style="display:flex;align-items:center;gap:5px;font-size:0.9rem"><input id="insert-golden-voice" type="checkbox" /> Insert Golden Voice slide every 10 songs</label>
+      <label class="folder-btn" style="padding:7px 10px;cursor:pointer">Upload Swami's Songs Playlist
+        <input id="media-playlist-file" type="file" accept=".txt,.text" style="display:none" onchange="uploadMediaPlaylist(this.files[0])" />
+      </label>
       <label class="folder-btn" style="padding:7px 10px;cursor:pointer">Upload Samithi Excel
         <input id="samithi-file" type="file" accept=".xlsx" style="display:none" onchange="uploadSamithiMap(this.files[0])" />
       </label>
       <span id="samithi-status" class="hint" style="margin-top:0"></span>
+      <span id="media-playlist-status" class="hint" style="margin-top:0">One media path per line; entries are used in order.</span>
     </div>
     <textarea id="song-list-input"
       placeholder="Type the first few words of each bhajan, one per line:&#10;&#10;Jai Jai Sai Ram&#10;Om Namah Shivaya&#10;Govinda Govinda&#10;..."
@@ -839,6 +887,7 @@
       <div id="slide-song-title"></div>
       <div id="slide-samithi"></div>
       <div id="slide-next-song"></div>
+      <div id="slide-media-frame"></div>
       <div id="slide-lyrics"></div>
 
       <svg class="corner-ornament br" viewBox="0 0 60 60" fill="none">
@@ -881,6 +930,7 @@ let totalSongs = 0;
 let totalSlides = 0;
 let currentSlide = 0;
 let librarySongs = [];
+let mediaPlaylist = [];
 const selectedLibrarySongIds = new Set();
 const samithiById = new Map();
 const samithiByFirstLine = new Map();
@@ -912,6 +962,28 @@ async function uploadSamithiMap(file) {
   document.getElementById('song-list-input').value = sessionLines.join('\n');
   status.textContent = `Loaded ${data.count} Samithi mappings and populated the session`;
   previewMatches();
+}
+
+async function uploadMediaPlaylist(file) {
+  if (!file) return;
+  const status = document.getElementById('media-playlist-status');
+  const form = new FormData();
+  form.append('file', file);
+  try {
+    const response = await fetch('/media-playlist', { method: 'POST', body: form });
+    const data = await response.json();
+    if (!response.ok) {
+      mediaPlaylist = [];
+      status.textContent = data.error || 'Unable to read the media playlist.';
+      return;
+    }
+    mediaPlaylist = data.entries || [];
+    const warning = data.errors?.length ? ` (${data.errors.length} skipped)` : '';
+    status.textContent = `Loaded ${mediaPlaylist.length} Swami's song${mediaPlaylist.length === 1 ? '' : 's'}${warning}`;
+  } catch (error) {
+    mediaPlaylist = [];
+    status.textContent = 'Unable to upload the media playlist.';
+  }
 }
 
 function filteredLibrarySongs() {
@@ -1468,8 +1540,10 @@ async function buildSession() {
   });
   session = [];
   let presentationNumber = 0;
+  let mediaIndex = 0;
   songs.forEach((song, index) => {
-    if (document.getElementById('insert-golden-voice')?.checked && (presentationNumber + 1) % 10 === 0) {
+    const insertGoldenVoice = mediaPlaylist.length > 0 || document.getElementById('insert-golden-voice')?.checked;
+    if (insertGoldenVoice && (presentationNumber + 1) % 10 === 0) {
       const previousSong = session[session.length - 1];
       if (previousSong && previousSong.type !== 'interstitial') previousSong.goldenVoiceNotice = true;
       presentationNumber += 1;
@@ -1480,6 +1554,7 @@ async function buildSession() {
         deity: '',
         lyrics: '',
         imageFile: null,
+        media: mediaPlaylist[mediaIndex++] || null,
         nextFirstLine: song.firstLine,
         nextSamithi: song.samithi
       });
@@ -1488,7 +1563,8 @@ async function buildSession() {
     song.sequenceNumber = presentationNumber;
     session.push(song);
   });
-  if (songs.length > 0 && document.getElementById('insert-golden-voice')?.checked && (presentationNumber + 1) % 10 === 0) {
+  const insertGoldenVoice = mediaPlaylist.length > 0 || document.getElementById('insert-golden-voice')?.checked;
+  if (songs.length > 0 && insertGoldenVoice && (presentationNumber + 1) % 10 === 0) {
     const previousSong = session[session.length - 1];
     if (previousSong && previousSong.type !== 'interstitial') previousSong.goldenVoiceNotice = true;
     presentationNumber += 1;
@@ -1499,6 +1575,7 @@ async function buildSession() {
       deity: '',
       lyrics: '',
       imageFile: null,
+      media: mediaPlaylist[mediaIndex++] || null,
       nextFirstLine: '',
       nextSamithi: ''
     });
@@ -1557,8 +1634,9 @@ function renderSlide(index) {
   const slide = session[index];
   if (!slide) return;
   const isInterstitial = slide.type === 'interstitial';
+  const hasMedia = isInterstitial && Boolean(slide.media);
 
-  document.getElementById('pres-title-bar').textContent = slide.title;
+  document.getElementById('pres-title-bar').textContent = hasMedia ? '' : slide.title;
   document.getElementById('slide-counter').textContent  = `${slide.sequenceNumber} / ${totalSlides}`;
 
   const lyricsEl = document.getElementById('slide-lyrics');
@@ -1567,6 +1645,8 @@ function renderSlide(index) {
   const noticeEl = document.getElementById('slide-notice');
   const samithiEl = document.getElementById('slide-samithi');
   const nextSongEl = document.getElementById('slide-next-song');
+  const mediaFrame = document.getElementById('slide-media-frame');
+  const slideArea = document.getElementById('slide-area');
   const lyricsPanel = document.getElementById('slide-lyrics-panel');
 
   sequenceEl.textContent = `${slide.sequenceNumber}`;
@@ -1575,11 +1655,24 @@ function renderSlide(index) {
     ? `Swami's song next · Bhajan ${slide.sequenceNumber + 1}`
     : '';
   samithiEl.textContent = showSamithi && slide.samithi ? `Samithi: ${slide.samithi}` : '';
-  const nextLabel = !slide.goldenVoiceNotice && slide.nextFirstLine
-    ? `Next: ${slide.nextFirstLine}${showSamithi && slide.nextSamithi ? ` · ${slide.nextSamithi}` : ''}`
+  const showNextSong = (showSamithi || isInterstitial) && !slide.goldenVoiceNotice && slide.nextFirstLine;
+  nextSongEl.innerHTML = showNextSong
+    ? `Next: ${escapeHtml(slide.nextFirstLine)}${showSamithi && slide.nextSamithi ? ` · <span class="next-song-samithi">${escapeHtml(slide.nextSamithi)}</span>` : ''}`
     : '';
-  nextSongEl.textContent = showSamithi ? nextLabel : '';
   lyricsPanel.classList.toggle('interstitial', isInterstitial);
+  slideArea.classList.toggle('media-interstitial', isInterstitial && Boolean(slide.media));
+
+  mediaFrame.replaceChildren();
+  mediaFrame.classList.toggle('visible', isInterstitial && Boolean(slide.media));
+  if (isInterstitial && slide.media) {
+    const mediaEl = document.createElement(slide.media.kind === 'video' ? 'video' : 'audio');
+    mediaEl.controls = true;
+    mediaEl.preload = 'metadata';
+    mediaEl.src = slide.media.url;
+    mediaEl.setAttribute('aria-label', slide.media.name || "Swami's song");
+    if (slide.media.kind === 'video') mediaEl.playsInline = true;
+    mediaFrame.appendChild(mediaEl);
+  }
 
   titleEl.style.animation  = 'none';
   lyricsEl.style.animation = 'none';
@@ -1588,7 +1681,7 @@ function renderSlide(index) {
     lyricsEl.style.animation = 'slideIn 0.5s ease 0.1s both';
   });
 
-  titleEl.textContent  = slide.title;
+  titleEl.textContent  = hasMedia ? '' : slide.title;
   lyricsEl.textContent = isInterstitial ? '' : getLyricsOnly(slide.lyrics);
 
   const imgPanel    = document.getElementById('slide-image-panel');
